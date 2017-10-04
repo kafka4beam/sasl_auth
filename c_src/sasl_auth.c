@@ -229,7 +229,7 @@ static ERL_NIF_TERM kinit(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
     }
 
     krb5_get_init_creds_opt *options = NULL;
-    if ((kebab.error = krb5_get_init_creds_opt_alloc(kebab->context, &options)))
+    if ((kebab.error = krb5_get_init_creds_opt_alloc(kebab.context, &options)))
     {
         krb5_cc_close(kebab.context, defcache);
         krb5_kt_close(kebab.context, ktHnd);
