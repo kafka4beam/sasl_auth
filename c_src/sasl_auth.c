@@ -221,11 +221,35 @@ static ERL_NIF_TERM kinit(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
     if ((kebab.error = krb5_kt_resolve(kebab.context, (char *)keytab.data, &ktHnd)))
         return error_and_exit(env, &kebab, "krb5_kt_resolve");
 
-	if ((kebab.error = krb5_get_init_creds_keytab(kebab.context,&kebab.creds,kebab.principal,ktHnd,0,NULL,NULL)))
+    krb5_ccache defcache = NULL;
+    if ((kebab.error = krb5_cc_default(kebab.context, &defcache)))
+    {
+        krb5_kt_close(kebab.context, ktHnd);
+    	return error_and_exit(env, &kebab, "krb5_cc_default");
+    }
+
+    krb5_get_init_creds_opt *options = NULL;
+    if ((kebab.error = krb5_get_init_creds_opt_alloc(kebab.context, &options)))
+    {
+        krb5_cc_close(kebab.context, defcache);
+        krb5_kt_close(kebab.context, ktHnd);
+        return error_and_exit(env, &kebab, "krb5_get_init_creds_opt_alloc");
+    }
+
+    if ((kebab.error = krb5_get_init_creds_opt_set_out_ccache(kebab.context, options, defcache)))
+    {
+        krb5_cc_close(kebab.context, defcache);
+        krb5_kt_close(kebab.context, ktHnd);
+        return error_and_exit(env, &kebab, "krb5_get_init_creds_opt_set_out_ccache");
+    }
+
+	if ((kebab.error = krb5_get_init_creds_keytab(kebab.context,&kebab.creds,kebab.principal,ktHnd,0,NULL,options)))
 	{
+	    krb5_cc_close(kebab.context, defcache);
 		krb5_kt_close(kebab.context, ktHnd);
 		return error_and_exit(env, &kebab, "krb5_get_init_creds_keytab");
 	}
+	krb5_cc_close(kebab.context, defcache);
 	krb5_kt_close(kebab.context, ktHnd);
 
     return error_and_exit(env, &kebab, NULL);
