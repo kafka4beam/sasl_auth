@@ -228,7 +228,15 @@ static ERL_NIF_TERM kinit(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
     	return error_and_exit(env, &kebab, "krb5_cc_default");
     }
 
-    if ((kebab.error = krb5_get_init_creds_opt_set_out_ccache(kebab.context, NULL, defcache)))
+    krb5_get_init_creds_opt *options = NULL;
+    if ((kebab.error = krb5_get_init_creds_opt_alloc(kebab->context, &options)))
+    {
+        krb5_cc_close(kebab.context, defcache);
+        krb5_kt_close(kebab.context, ktHnd);
+        return error_and_exit(env, &kebab, "krb5_get_init_creds_opt_alloc");
+    }
+
+    if ((kebab.error = krb5_get_init_creds_opt_set_out_ccache(kebab.context, options, defcache)))
     {
         krb5_cc_close(kebab.context, defcache);
         krb5_kt_close(kebab.context, ktHnd);
