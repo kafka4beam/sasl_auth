@@ -18,13 +18,8 @@ struct kebab
   krb5_creds      creds;
 };
 
-typedef struct sasl_state_s {
-        sasl_conn_t *conn;
-        sasl_callback_t callbacks[16];
-} sasl_state_t;
-
-// SASL connection state
-sasl_state_t *state;
+// SASL connection
+sasl_conn_t *conn;
 
 // Gets existing atom or creates new
 ERL_NIF_TERM get_atom(ErlNifEnv* env, const char* atom_name);
@@ -123,12 +118,8 @@ static ERL_NIF_TERM sasl_cli_new(ErlNifEnv* env, int argc, const ERL_NIF_TERM ar
     ErlNifBinary host;
     ErlNifBinary principal;
 
-    if(state) {
-        if(state ->conn) 
-            sasl_dispose(&state->conn);
-        
-        free(state);
-    }
+    if (conn)
+		sasl_dispose(&conn);
 
     if (!enif_is_binary(env, argv[0]) || !enif_is_binary(env, argv[1]) || !enif_is_binary(env, argv[2]))
         return enif_make_badarg(env);
@@ -136,7 +127,6 @@ static ERL_NIF_TERM sasl_cli_new(ErlNifEnv* env, int argc, const ERL_NIF_TERM ar
     if (!enif_inspect_binary(env, argv[0], &service) || !enif_inspect_binary(env, argv[1], &host) || !enif_inspect_binary(env, argv[2], &principal))
         return enif_make_badarg(env);
 
-    state = calloc(1, sizeof(*state));
     service.data[service.size] = '\0';
     host.data[host.size] = '\0';
     principal.data[principal.size] = '\0';
@@ -148,17 +138,15 @@ static ERL_NIF_TERM sasl_cli_new(ErlNifEnv* env, int argc, const ERL_NIF_TERM ar
             { SASL_CB_LIST_END }
     	};
 
-    memcpy(state->callbacks, callbacks, sizeof(callbacks));
-
     int result;
-	result = sasl_client_new((const char *)service.data, (const char *)host.data, NULL, NULL, state->callbacks, 0, &state->conn);
+	result = sasl_client_new((const char *)service.data, (const char *)host.data, NULL, NULL, callbacks, 0, &conn);
 	return enif_make_int(env, result);
 }
 
 static ERL_NIF_TERM sasl_list_mech(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
 	const char *avail_mechs;
-	sasl_listmech(state->conn, NULL, NULL, " ", NULL, &avail_mechs, NULL, NULL);
+	sasl_listmech(conn, NULL, NULL, " ", NULL, &avail_mechs, NULL, NULL);
 	return enif_make_string(env, avail_mechs, ERL_NIF_LATIN1);
 }
 
@@ -167,7 +155,7 @@ static ERL_NIF_TERM sasl_cli_start(ErlNifEnv* env, int argc, const ERL_NIF_TERM 
 	int result;
 	const char *out, *mech;
 	unsigned int outlen;
-	result = sasl_client_start(state->conn, "GSSAPI", NULL, &out, &outlen, &mech);
+	result = sasl_client_start(conn, "GSSAPI", NULL, &out, &outlen, &mech);
 	return enif_make_tuple2(env, enif_make_int(env, result), enif_make_string_len(env, out, outlen, ERL_NIF_LATIN1));
 }
 
@@ -191,7 +179,7 @@ static ERL_NIF_TERM sasl_cli_step(ErlNifEnv* env, int argc, const ERL_NIF_TERM a
 		in = (char*)malloc(challenge.size);
 		memcpy(in, challenge.data, challenge.size);
 	}
-	result = sasl_client_step(state->conn,
+	result = sasl_client_step(conn,
                              in, challenge.size,
                              &interact,
                              &out, &outlen);
@@ -202,7 +190,7 @@ static ERL_NIF_TERM sasl_cli_step(ErlNifEnv* env, int argc, const ERL_NIF_TERM a
 
 static ERL_NIF_TERM sasl_error(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
-	return enif_make_string(env, sasl_errdetail(state->conn), ERL_NIF_LATIN1);
+	return enif_make_string(env, sasl_errdetail(conn), ERL_NIF_LATIN1);
 }
 
 static ERL_NIF_TERM kinit(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
@@ -269,12 +257,8 @@ static ERL_NIF_TERM kinit(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 
 void unload(ErlNifEnv* env, void* priv_data)
 {
-    if(state) {
-        if(state ->conn) 
-            sasl_dispose(&state->conn);
-        
-        free(state);
-    }
+	if (conn)
+		sasl_dispose(&conn);
 }
 
 static ErlNifFunc nif_funcs[] =
