@@ -1,0 +1,91 @@
+############################################
+#  Operating System
+############################################
+
+FROM centos:centos7
+
+RUN yum update -y && yum clean all
+RUN yum reinstall -y glibc-common
+
+
+############################################
+#  Environment
+############################################
+
+ENV LANG=en_US.UTF-8
+ENV LC_CTYPE="en_US.UTF-8"
+ENV LC_NUMERIC="en_US.UTF-8"
+ENV LC_TIME="en_US.UTF-8"
+ENV LC_COLLATE="en_US.UTF-8"
+ENV LC_MONETARY="en_US.UTF-8"
+ENV LC_MESSAGES="en_US.UTF-8"
+ENV LC_PAPER="en_US.UTF-8"
+ENV LC_NAME="en_US.UTF-8"
+ENV LC_ADDRESS="en_US.UTF-8"
+ENV LC_TELEPHONE="en_US.UTF-8"
+ENV LC_MEASUREMENT="en_US.UTF-8"
+ENV LC_IDENTIFICATION="en_US.UTF-8"
+ENV LC_ALL="en_US.UTF-8"
+
+ENV HOME /root
+
+
+############################################
+#  Gather Host Dependencies
+############################################
+
+WORKDIR /rpms
+
+# COPY ./other_packages/erlang_solutions.asc.txt .
+# COPY ./other_packages/esl-erlang_24.0.5-1_centos_7_amd64.rpm .
+
+
+############################################
+#  Install Dependencies
+############################################
+
+RUN yum install -y epel-release
+
+RUN yum install -y openssl ca-certificates
+
+RUN yum install -y gcc gcc-c++ make openssl-libs openssl-devel ncurses-devel \
+    mesa-libGLU unixODBC wxBase wxGTK wxGTK-gl 
+
+RUN yum install -y libsasl2 libsasl2-dev krb5-workstation cyrus-sasl-devel cyrus-sasl cyrus-sasl-gssapi
+
+############################################
+#  Install Erlang
+############################################
+
+RUN rpm --import https://packages.erlang-solutions.com/rpm/erlang_solutions.asc
+RUN rpm -ivh https://packages.erlang-solutions.com/erlang/rpm/centos/7/x86_64/esl-erlang_24.0.5-1~centos~7_amd64.rpm
+
+RUN yum install -y sudo wget git tar bzip2 incron vim nodejs npm unzip && yum clean all
+
+RUN git config --global url.https://github.com/.insteadOf git://github.com/
+RUN git config --global url.https://.insteadOf git://
+
+
+#############################################
+# Install Rebar3
+#############################################
+
+WORKDIR /opt/
+RUN git clone https://github.com/erlang/rebar3.git
+
+WORKDIR /opt/rebar3
+
+RUN ./bootstrap
+RUN ./rebar3 local install
+
+#############################################
+# Set Environment variables
+#############################################
+
+ENV PATH=$PATH:/opt/rebar3
+ENV KRB5CCNAME=FILE:/tmp/tgt
+
+
+
+
+
