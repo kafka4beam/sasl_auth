@@ -34,25 +34,30 @@ init() ->
 
 -spec kinit(Keytab :: binary(), Principal :: binary()) ->
     {ok, Result :: string()} | {error, Reason :: string()}.
-kinit(_, _) -> exit(nif_library_not_loaded).
+kinit(_, _) -> not_loaded(?LINE).
 
 -spec sasl_client_init() -> SaslCode :: integer() | {error, Reason :: string()}.
-sasl_client_init() -> exit(nif_library_not_loaded).
+sasl_client_init() -> not_loaded(?LINE).
 
 -spec sasl_client_new(ServiceName :: binary(), Host :: binary(), Principal :: binary()) ->
     SaslCode :: integer() | {error, Reason :: string()}.
-sasl_client_new(_, _, _) -> exit(nif_library_not_loaded).
+sasl_client_new(_, _, _) -> not_loaded(?LINE).
 
 -spec sasl_listmech() -> SupportedMechs :: string() | {error, Reason :: string()}.
-sasl_listmech() -> exit(nif_library_not_loaded).
+sasl_listmech() -> not_loaded(?LINE).
 
 -spec sasl_client_start() ->
     {SaslRes :: integer(), Token :: string()} | {error, Reason :: string()}.
-sasl_client_start() -> exit(nif_library_not_loaded).
+sasl_client_start() -> not_loaded(?LINE).
 
 -spec sasl_client_step(Token :: binary()) ->
     {SaslRes :: integer(), Token :: string()} | {error, Reason :: string()}.
-sasl_client_step(_) -> exit(nif_library_not_loaded).
+sasl_client_step(_) -> not_loaded(?LINE).
 
 -spec sasl_errdetail() -> ErrorDescription :: string().
-sasl_errdetail() -> exit(nif_library_not_loaded).
+sasl_errdetail() -> not_loaded(?LINE).
+
+
+
+not_loaded(Line) ->
+    erlang:nif_error({not_loaded, [{module, ?MODULE}, {line, Line}]}).
