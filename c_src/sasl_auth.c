@@ -250,6 +250,7 @@ static ERL_NIF_TERM kinit(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 
     if ((kebab.error = krb5_get_init_creds_opt_set_out_ccache(kebab.context, options, defcache)))
     {
+        krb5_get_init_creds_opt_free(kebab.context, options);
         krb5_cc_close(kebab.context, defcache);
         krb5_kt_close(kebab.context, ktHnd);
         return error_and_exit(env, &kebab, "krb5_get_init_creds_opt_set_out_ccache");
@@ -257,6 +258,7 @@ static ERL_NIF_TERM kinit(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 
     if ((kebab.error = krb5_get_init_creds_keytab(kebab.context,&kebab.creds,kebab.principal,ktHnd,0,NULL,options)))
     {
+        krb5_get_init_creds_opt_free(kebab.context, options);
         krb5_cc_close(kebab.context, defcache);
         krb5_kt_close(kebab.context, ktHnd);
         return error_and_exit(env, &kebab, "krb5_get_init_creds_keytab");
@@ -269,6 +271,7 @@ static ERL_NIF_TERM kinit(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 
 void unload(ErlNifEnv* env, void* priv_data)
 {
+    printf("UNLOAD!!!\n");
     if(state) {
         if(state ->conn) 
             sasl_dispose(&state->conn);
