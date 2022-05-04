@@ -1,8 +1,9 @@
 sasl_auth
 =====
 
-sasl_auth is a simple wrapper for cyrus sasl library (https://cyrusimap.org/docs/cyrus-sasl/2.1.23/programming.php)
-It helps to implement SASL GSSAPI auth mechanism support in your erlang application.
+sasl_auth is a simple wrapper for [cyrus sasl library](https://www.cyrusimap.org/sasl/).
+It helps to implement SASL GSSAPI auth mechanism support in your Erlang
+application.
 
 Dependencies
 -----
