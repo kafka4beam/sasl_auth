@@ -13,28 +13,41 @@ ERL_INTERFACE_LIB_DIR ?= $(shell erl -noshell -s init stop -eval "io:format(\"~s
 C_SRC_DIR = $(CURDIR)
 C_SRC_OUTPUT ?= $(CURDIR)/../priv/$(PROJECT).so
 
+ifdef NORMAL_DEBUG
+	EXTRA_C_FLAGS := -fPIC -g -O0
+	CC := clang
+	MEMSAN_FLAGS := 
+else ifdef MEMSAN_DEBUG
+	MEMSAN_FLAGS := -fno-omit-frame-pointer -fsanitize=address
+	EXTRA_C_FLAGS := -fPIC -g -O0 $(MEMSAN_FLAGS) -I $(ERL_TOP)/erts/emulator/beam/ -I $(ERL_TOP)/erts/include/x86_64-pc-linux-gnu/
+	CC := clang
+else
+	EXTRA_C_FLAGS := -g -fPIC -O3
+	MEMSAN_FLAGS := 
+endif
+
 # System type and C compiler/flags.
 
 UNAME_SYS := $(shell uname -s)
 ifeq ($(UNAME_SYS), Darwin)
 	CC ?= cc
-	CFLAGS ?= -O3 -std=c99 -arch x86_64 -finline-functions -Wall -Wmissing-prototypes
+	CFLAGS ?= $(EXTRA_C_FLAGS) -std=c99 -arch x86_64 -finline-functions -Wall -Wmissing-prototypes
 	CXXFLAGS ?= -O3 -arch x86_64 -finline-functions -Wall
 	LDFLAGS ?= -arch x86_64 -flat_namespace -undefined suppress
 else ifeq ($(UNAME_SYS), FreeBSD)
 	CC ?= cc
-	CFLAGS ?= -O3 -std=c99 -finline-functions -Wall -Wmissing-prototypes
+	CFLAGS ?= $(EXTRA_C_FLAGS) -std=c99 -finline-functions -Wall -Wmissing-prototypes
 	CXXFLAGS ?= -O3 -finline-functions -Wall
 else ifeq ($(UNAME_SYS), Linux)
 	CC ?= gcc
-	CFLAGS ?= -O3 -std=c99 -finline-functions -Wall -Wmissing-prototypes
+	CFLAGS ?= $(EXTRA_C_FLAGS) -std=c99 -finline-functions -Wall -Wmissing-prototypes
 	CXXFLAGS ?= -O3 -finline-functions -Wall
 endif
 
 CFLAGS += -fPIC -I $(ERTS_INCLUDE_DIR) -I $(ERL_INTERFACE_INCLUDE_DIR)
 CXXFLAGS += -fPIC -I $(ERTS_INCLUDE_DIR) -I $(ERL_INTERFACE_INCLUDE_DIR)
 
-LDLIBS += -L $(ERL_INTERFACE_LIB_DIR) -lei -lkrb5 -lsasl2
+LDLIBS += -L $(CURDIR) -L $(ERL_INTERFACE_LIB_DIR) -lei -lkrb5 -lsasl2
 LDFLAGS += -shared
 
 # Verbosity.
@@ -71,4 +84,4 @@ $(C_SRC_OUTPUT): $(OBJECTS)
 	$(COMPILE_CPP) $(OUTPUT_OPTION) $<
 
 clean:
-	@rm -f $(C_SRC_OUTPUT) $(OBJECTS)
+	@rm -f $(C_SRC_OUTPUT) $(OBJECTS) $(CURDIR)/libei.a

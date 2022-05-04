@@ -17,3 +17,5 @@ _build
 *.iml
 rebar.lock
 *.so
+c_src/libei.a
+otp/
