@@ -83,7 +83,7 @@ static ERL_NIF_TERM str_to_bin(ErlNifEnv* env, const char* string, unsigned long
 
     unsigned char* ptr = enif_make_new_binary(env, len, &ret);
 
-    (void)memmove(ptr, string, len);
+    (void)memcpy(ptr, string, len);
 
     return ret;
 }
