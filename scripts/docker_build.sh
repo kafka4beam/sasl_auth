@@ -1,3 +1,3 @@
 
 #!/bin/sh
-docker build -f docker/Dockerfile.builder -t sasl_auth:latest .
+docker build -f Docker/Dockerfile.builder -t sasl_auth:latest .
