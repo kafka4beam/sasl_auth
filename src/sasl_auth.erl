@@ -5,9 +5,99 @@
 -module(sasl_auth).
 
 %% API
--export([init/0, kinit/2, sasl_client_init/0, sasl_client_new/3, sasl_listmech/0, sasl_client_start/0, sasl_client_step/1, sasl_errdetail/0]).
+-export([
+    init/0,
+    kinit/2,
+    client_new/3,
+    client_listmech/1,
+    client_start/1,
+    client_step/2
+]).
 -on_load(init/0).
 
+-define(SASL_CODES, #{
+    0 => sasl_ok,
+    1 => sasl_continue,
+    2 => sasl_interact,
+    -1 => sasl_fail,
+    -2 => sasl_nomem,
+    -3 => sasl_bufover,
+    -4 => sass_nomech,
+    -5 => sasl_badprot,
+    -6 => sasl_notdone,
+    -7 => sasl_badparam,
+    -8 => sasl_tryagain,
+    -9 => sasl_badmac,
+    -10 => sasl_badserv,
+    -11 => sasl_wrongmech,
+    -12 => sasl_notinit,
+    -13 => sasl_badauth,
+    -14 => sasl_noauthz,
+    -15 => sasl_tooweak,
+    -16 => sasl_encrypt,
+    -17 => sasl_trans,
+    -18 => sasl_expired,
+    -19 => sasl_disabled,
+    -20 => sasl_nouser,
+    -21 => sasl_pwlock,
+    -22 => sasl_nochange,
+    -23 => sasl_badvers,
+    -24 => sasl_unavail,
+    -26 => sasl_noverify,
+    -27 => sasl_weakpass,
+    -28 => sasl_nouserpass,
+    -29 => sasl_need_old_passwd,
+    -30 => sasl_constraint_violat,
+    -32 => sasl_badbinding,
+    -100 => sasl_configerr
+}).
+
+-type state() :: reference().
+-type keytab_path() :: file:filename_all().
+-type principal() :: binary().
+-type service_name() :: binary().
+-type host() :: binary().
+-type available_mechs() :: [binary()].
+
+-type sasl_code() ::
+    sasl_badserv
+    | sasl_noverify
+    | sasl_weakpass
+    | sasl_badauth
+    | sasl_tooweak
+    | sasl_nomem
+    | sasl_need_old_passwd
+    | sasl_badprot
+    | sasl_expired
+    | sasl_nouser
+    | sasl_badbinding
+    | sasl_badvers
+    | sasl_configerr
+    | sasl_noauthz
+    | sasl_ok
+    | sasl_nouserpass
+    | sasl_notdone
+    | sasl_notinit
+    | sasl_trans
+    | sasl_interact
+    | sasl_bufover
+    | sasl_pwlock
+    | sasl_constraint_violat
+    | sasl_continue
+    | sasl_fail
+    | sasl_encrypt
+    | sasl_badparam
+    | sasl_badmac
+    | sasl_tryagain
+    | sasl_unavail
+    | sasl_wrongmech
+    | sasl_nochange
+    | sasl_disabled
+    | sass_nomech
+    | unknown.
+
+-spec init() ->
+    ok | {error, {load_failed | bad_lib | load | reload | upgrade | old_code, Text :: string()}}.
 init() ->
     NifLib =
         case code:priv_dir(sasl_auth) of
@@ -23,23 +113,75 @@ init() ->
         end,
     erlang:load_nif(NifLib, 0).
 
--spec kinit(Keytab :: binary(), Principal :: binary()) -> {ok, Result :: string()} | {error, Reason :: string()}.
-kinit(_, _) -> exit(nif_library_not_loaded).
+-spec kinit(KeyTabPath :: keytab_path(), Principal :: principal()) ->
+    ok | {error, {binary(), integer(), binary()}}.
+kinit(KeyTabPath, Principal) ->
+    sasl_kinit(null_terminate(KeyTabPath), null_terminate(Principal)).
 
--spec sasl_client_init() -> SaslCode :: integer() | {error, Reason :: string()}.
-sasl_client_init() -> exit(nif_library_not_loaded).
+-spec client_new(ServiceName :: service_name(), Host :: host(), Principal :: principal()) ->
+    {ok, state()}
+    | {error, sasl_code()}.
+client_new(ServiceName, Host, Principal) ->
+    ServiceName0 = null_terminate(ServiceName),
+    Host0 = null_terminate(Host),
+    Principal0 = null_terminate(Principal),
+    case sasl_client_new(ServiceName0, Host0, Principal0) of
+        {ok, _} = Ret ->
+            Ret;
+        {error, Code} ->
+            {error, code_to_atom(Code)}
+    end.
 
--spec sasl_client_new(ServiceName :: binary(), Host :: binary(), Principal :: binary()) -> SaslCode :: integer() | {error, Reason :: string()}.
-sasl_client_new(_, _, _) -> exit(nif_library_not_loaded).
+-spec client_listmech(State :: state()) ->
+    {ok, available_mechs()} | {error, {sasl_code(), binary()}}.
+client_listmech(State) ->
+    case sasl_listmech(State) of
+        {ok, Mechs} ->
+            {ok, binary:split(Mechs, <<" ">>, [global])};
+        {error, {Code, Detail}} ->
+            {error, {code_to_atom(Code), strip_null_terminate(Detail)}}
+    end.
 
--spec sasl_listmech() -> SupportedMechs :: string() | {error, Reason :: string()}.
-sasl_listmech() -> exit(nif_library_not_loaded).
+-spec client_start(State :: state()) ->
+    {ok, {sasl_code(), binary()}} | {error, {sasl_code(), binary()}}.
+client_start(State) ->
+    case sasl_client_start(State) of
+        {ok, {Code, Token}} ->
+            {ok, {code_to_atom(Code), Token}};
+        {error, {Code, Detail}} ->
+            {error, {code_to_atom(Code), strip_null_terminate(Detail)}}
+    end.
 
--spec sasl_client_start() -> {SaslRes :: integer(), Token :: string()} | {error, Reason :: string()}.
-sasl_client_start() -> exit(nif_library_not_loaded).
+-spec client_step(state(), binary()) ->
+    {ok, {sasl_code(), binary()}} | {error, {sasl_code(), binary()}}.
+client_step(State, Token) ->
+    case sasl_client_step(State, Token) of
+        {ok, {Code, MaybeNewToken}} ->
+            {ok, {code_to_atom(Code), MaybeNewToken}};
+        {error, {Code, Detail}} ->
+            {error, {code_to_atom(Code), strip_null_terminate(Detail)}}
+    end.
 
--spec sasl_client_step(Token :: binary()) ->  {SaslRes :: integer(), Token :: string()} | {error, Reason :: string()}.
-sasl_client_step(_) -> exit(nif_library_not_loaded).
+code_to_atom(Code) ->
+    maps:get(Code, ?SASL_CODES, unknown).
 
--spec sasl_errdetail() -> ErrorDescription :: string().
-sasl_errdetail() ->  exit(nif_library_not_loaded).
+null_terminate(Bin) ->
+    iolist_to_binary([Bin, 0]).
+
+strip_null_terminate(Bin) ->
+    case binary:split(Bin, <<0>>) of
+        [X, _] ->
+            X;
+        [X] ->
+            X
+    end.
+
+sasl_kinit(_, _) -> erlang:nif_error(nif_not_loaded).
+
+sasl_client_new(_Service, _Host, _Principal) -> erlang:nif_error(nif_not_loaded).
+
+sasl_listmech(_State) -> erlang:nif_error(nif_not_loaded).
+
+sasl_client_start(_State) -> erlang:nif_error(nif_not_loaded).
+
+sasl_client_step(_State, _Token) -> erlang:nif_error(nif_not_loaded).

@@ -15,5 +15,5 @@ logs
 _build
 .idea
 *.iml
-rebar.lock
 *.so
+priv/*.keytab
