@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
 
-docker build -f scripts/setup_and_run_rebar3_ct_in_docker/Dockerfile -t sasl_auth_ubuntu_docker:latest .
+# Separated into tow steps to make github action workflow work
 
-docker run --rm -it \
--v $(pwd):/sasl_auth \
--w /sasl_auth \
-sasl_auth_ubuntu_docker:latest \
-scripts/setup_and_run_rebar3_ct_in_docker/setup_and_run.sh
+./scripts/setup_and_run_rebar3_ct_in_docker/build_docker_image.sh
+
+./scripts/setup_and_run_rebar3_ct_in_docker/run_in_docker.sh
