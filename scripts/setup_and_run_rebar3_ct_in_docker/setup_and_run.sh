@@ -11,7 +11,7 @@ echo CREATE REALM DB
 
 kdb5_util -P password -r EXAMPLE.COM create -s
 
-echo STARTING KDC
+echo START KDC
 
 krb5kdc -n &
 /usr/bin/kadmind -nofork &
@@ -20,7 +20,7 @@ echo ADD USER PRINCIPAL
 
 kadmin.local addprinc -pw password user@EXAMPLE.COM
 
-echo ADD KAFKA PRINCIPAL
+echo 'ADD KAFKA PRINCIPAL (NO ACTUAL KAFKA INSTALLATION)'
 
 kadmin.local addprinc -randkey kafka/localhost
 kadmin.local ktadd  kafka/localhost
@@ -44,9 +44,12 @@ echo RUN TESTS
 rebar3 clean
 rebar3 ct
 
+TEST_RESULT=$?
+
 echo CLEANUP
 
 rebar3 clean
 
 rm $SASL_AUTH_TEST_KEY_TAB
 
+exit $TEST_RESULT
