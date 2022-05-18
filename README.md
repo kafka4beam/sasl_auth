@@ -21,16 +21,8 @@ sasl_auth used in https://github.com/ElMaxo/brod_gssapi - GSSAPI auth backend fo
 
 Test in a docker container
 ----
-- Make sure to delete `c_src\sasl_auth.o` and `priv\sasl_auth.so` file if exists
-- Generate keytab file for your user using `kinit` command e.g. `kinit -kt PATH_TO_KEY_TAB USER` and copy it to /priv dir
-- Run `sh scripts/docker_build.sh`
-- Have a krb5.conf copied to your local /etc folder with correct kerberos config. This file is mapped to docker container
-- Set environment variables:
-  - SASL_AUTH_TEST_HOST - Host name
-  - SASL_AUTH_TEST_KEY_TAB - full Path to keytab file.
-  - SASL_AUTH_TEST_PRINCIPAL - user name
-- Run `sh scripts/docker_run.sh`
-- Run `rebar3 ct`
+
+Run `./scripts/setup_and_run_rebar3_ct_in_docker.sh`
 
 Use
 -----
