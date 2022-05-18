@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y \
     curl \
     g++ \
     gcc \
+    git \
     libffi-dev \
     libncurses5-dev \
     libssl-dev \
