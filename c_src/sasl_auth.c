@@ -340,8 +340,10 @@ kinit_finish:
 
     krb5_free_cred_contents(context, &creds);
     krb5_free_principal(context, principal);
+    if (options != NULL) {
+        krb5_get_init_creds_opt_free(context, options);
+    }
     krb5_free_context(context);
-
     return ret;
 }
 
