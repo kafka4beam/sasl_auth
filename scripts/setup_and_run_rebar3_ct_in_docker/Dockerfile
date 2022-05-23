@@ -65,4 +65,3 @@ RUN ./rebar3 local install
 ENV PATH=$PATH:/opt/kerl:/opt/rebar3:/opt/kerl/24.2.1/bin
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
-

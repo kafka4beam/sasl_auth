@@ -36,20 +36,36 @@ printf "%b" "addent -password -p $SASL_AUTH_TEST_PRINCIPAL -k 1 -e aes256-cts-hm
 
 echo MOVE KEYTAB
 
+mv  $SASL_AUTH_TEST_KEY_TAB $SASL_AUTH_TEST_KEY_TAB.orgcopy
+
+ls priv
+
 mv $SASL_AUTH_TEST_PRINCIPAL.keytab $SASL_AUTH_TEST_KEY_TAB
 
 echo RUN TESTS
 
-. /opt/kerl/24.2.1/activate
-rebar3 clean
-rebar3 ct
+if [ $1 = asan ]
+then
+    ./scripts/address_sanitizer/setup.sh
+    ./scripts/address_sanitizer/run.sh
+else
+    . /opt/kerl/24.2.1/activate
+    rebar3 clean
+    rebar3 ct
+fi
 
 TEST_RESULT=$?
 
 echo CLEANUP
 
-rebar3 clean
-
 rm $SASL_AUTH_TEST_KEY_TAB
+mv $SASL_AUTH_TEST_KEY_TAB.orgcopy $SASL_AUTH_TEST_KEY_TAB
+
+rebar3 clean
+rebar3 as test clean
+
+# Remove _build so we don't get permission problems
+
+rm -rf _build
 
 exit $TEST_RESULT

@@ -13,6 +13,18 @@ ERL_INTERFACE_LIB_DIR ?= $(shell erl -noshell -s init stop -eval "io:format(\"~s
 C_SRC_DIR = $(CURDIR)
 C_SRC_OUTPUT ?= $(CURDIR)/../priv/$(PROJECT).so
 
+ifdef NORMAL_DEBUG
+	EXTRA_C_FLAGS := -fPIC -g -O0
+	MEMSAN_FLAGS := 
+else ifdef MEMSAN_DEBUG
+	MEMSAN_FLAGS := -fno-omit-frame-pointer -fsanitize=address
+	OTP_PLATFORM := $(shell $(ERL_TOP)/erts/autoconf/config.guess)
+	EXTRA_C_FLAGS := -fPIC -g -O0 $(MEMSAN_FLAGS) -I $(ERL_TOP)/erts/emulator/beam/ -I "$(ERL_TOP)/erts/include/$(OTP_PLATFORM)/"
+else
+	EXTRA_C_FLAGS := -g -fPIC -O3
+	MEMSAN_FLAGS := 
+endif
+
 # System type and C compiler/flags.
 
 UNAME_SYS := $(shell uname -s)
@@ -25,7 +37,7 @@ ifeq ($(UNAME_SYS), Darwin)
 	CYRUS_LIB ?= $(CYRUS_PREFIX)/lib
 
 	CC ?= cc
-	CFLAGS ?= -O3 -std=c99 -finline-functions -Wall -Wextra -Wconversion -Wcast-align -Wformat=2 -Wformat-security \
+	CFLAGS ?= $(EXTRA_C_FLAGS) -std=c99 -finline-functions -Wall -Wextra -Wconversion -Wcast-align -Wformat=2 -Wformat-security \
 			  -Wmissing-prototypes -Wmissing-declarations -Wstrict-prototypes -Wstrict-overflow \
 			  -I$(CYRUS_INCLUDE) -I$(KRB5_INCLUDE)
 	CXXFLAGS ?= -O3 -finline-functions -Wall -Wextra -Wconversion -Wcast-align -Wformat=2 -Wformat-security \
@@ -36,11 +48,11 @@ ifeq ($(UNAME_SYS), Darwin)
 	LDLIBS += -L$(CYRUS_LIB) -L$(KRB5_LIB)
 else ifeq ($(UNAME_SYS), FreeBSD)
 	CC ?= cc
-	CFLAGS ?= -O3 -std=c99 -finline-functions -Wall -Wmissing-prototypes
+	CFLAGS ?= $(EXTRA_C_FLAGS) -std=c99 -finline-functions -Wall -Wmissing-prototypes
 	CXXFLAGS ?= -O3 -finline-functions -Wall
 else ifeq ($(UNAME_SYS), Linux)
 	CC ?= gcc
-	CFLAGS ?= -O3 -std=c99 -finline-functions -Wall -Wextra -Wconversion -Wcast-align -Wformat=2 -Wformat-security \
+	CFLAGS ?= $(EXTRA_C_FLAGS) -std=c99 -finline-functions -Wall -Wextra -Wconversion -Wcast-align -Wformat=2 -Wformat-security \
 			  -Wmissing-prototypes -Wmissing-declarations -Wstrict-prototypes -Wstrict-overflow
 	CXXFLAGS ?= -O3 -finline-functions -Wall -Wextra -Wconversion -Wcast-align -Wformat=2 -Wformat-security \
 				-Wmissing-prototypes -Wmissing-declarations -Wstrict-prototypes -Wstrict-overflow
@@ -49,7 +61,7 @@ endif
 CFLAGS += -fPIC -I$(ERTS_INCLUDE_DIR) -I$(ERL_INTERFACE_INCLUDE_DIR)
 CXXFLAGS += -fPIC -I$(ERTS_INCLUDE_DIR) -I$(ERL_INTERFACE_INCLUDE_DIR)
 
-LDLIBS += -L$(ERL_INTERFACE_LIB_DIR)  -lei -lkrb5 -lsasl2
+LDLIBS += -L $(CURDIR) -L $(ERL_INTERFACE_LIB_DIR)  -lei -lkrb5 -lsasl2
 LDFLAGS += -shared
 
 # Verbosity.
@@ -86,4 +98,4 @@ $(C_SRC_OUTPUT): $(OBJECTS)
 	$(COMPILE_CPP) $(OUTPUT_OPTION) $<
 
 clean:
-	@rm -f $(C_SRC_OUTPUT) $(OBJECTS)
+	@rm -f $(C_SRC_OUTPUT) $(OBJECTS) $(CURDIR)/libei.a
