@@ -23,6 +23,16 @@ You can execute the tests with the following command (if you have
 
     $ `./scripts/setup_and_run_rebar3_ct_in_docker.sh`
 
+By default, the script above runs the test in a docker container that is
+created from a docker image that is described in the file
+`scripts/setup_and_run_rebar3_ct_in_docker/Dockerfile.ubuntu22.04`. You can
+change the dockerfile by specifying the environment
+variable `SASL_AUTH_DOCKER_FILE`. The following command will run
+the tests in a Centos7 docker image:
+
+    $ `SASL_AUTH_DOCKER_FILE=scripts/setup_and_run_rebar3_ct_in_docker/Dockerfile.centos7 ./scripts/setup_and_run_rebar3_ct_in_docker.sh`
+
+
 You can execute the following command to run the tests in a docker container
 with Erlang/OTP and the NIF library compiled with [address
 sanitizer](https://github.com/google/sanitizers/wiki/AddressSanitizer) (finds

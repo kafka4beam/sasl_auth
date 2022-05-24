@@ -24,10 +24,10 @@ jobs:
       uses: docker/build-push-action@v2
       with:
         context: ./
-        file: ./scripts/setup_and_run_rebar3_ct_in_docker/Dockerfile
+        file: ./scripts/setup_and_run_rebar3_ct_in_docker/Dockerfile.ubuntu22.04
         builder: ${{ steps.buildx.outputs.name }}
         load: true
-        tags: sasl_auth_ubuntu_docker:latest
+        tags: sasl_auth_dockerfile.ubuntu22.04
         cache-from: type=local,src=/tmp/.buildx-cache
         cache-to: type=local,dest=/tmp/.buildx-cache-new
       # This ugly bit is necessary if you don't want your cache to grow forever
