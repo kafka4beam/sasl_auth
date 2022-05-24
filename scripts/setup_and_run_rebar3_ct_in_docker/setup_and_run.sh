@@ -13,8 +13,11 @@ kdb5_util -P password -r EXAMPLE.COM create -s
 
 echo START KDC
 
+touch /var/lib/krb5kdc/kadm5.acl
+
 krb5kdc -n &
-/usr/bin/kadmind -nofork &
+
+kadmind -nofork &
 
 echo ADD USER PRINCIPAL
 
@@ -25,6 +28,8 @@ echo 'ADD KAFKA PRINCIPAL (NO ACTUAL KAFKA INSTALLATION)'
 kadmin.local addprinc -randkey kafka/localhost
 kadmin.local ktadd  kafka/localhost
 
+kadmin.local addprinc -randkey kafka/example.com
+kadmin.local ktadd  kafka/example.com
 
 echo CREATE KEYTAB FOR USER
 
@@ -32,13 +37,34 @@ export SASL_AUTH_TEST_HOST=example.com
 export SASL_AUTH_TEST_KEY_TAB=/sasl_auth/priv/user.keytab
 export SASL_AUTH_TEST_PRINCIPAL=user
 
-printf "%b" "addent -password -p $SASL_AUTH_TEST_PRINCIPAL -k 1 -e aes256-cts-hmac-sha1-96\npassword\nwrite_kt $SASL_AUTH_TEST_PRINCIPAL.keytab" | ktutil
+## Unfortunately simply piping to ktutil did not work on Alpine OS so we use
+## the expect script instead (inspired from code found here
+## https://localcoder.org/script-kerberos-ktutil-to-make-keytabs).
+##
+## printf "%b" "addent -password -p $SASL_AUTH_TEST_PRINCIPAL -k 1 -e aes256-cts-hmac-sha1-96\npassword\nwrite_kt $SASL_AUTH_TEST_PRINCIPAL.keytab" | ktutil
+
+expect << EOF
+    set timeout 10
+    spawn /usr/bin/ktutil
+    expect {
+       "ktutil: " { send "addent -password -p $SASL_AUTH_TEST_PRINCIPAL -k 1 -e aes256-cts-hmac-sha1-96\r" }
+       timeout { puts "Timeout waiting for ktutil prompt."; exit 1; }
+    }
+    expect {
+       -re "Password for \\\\S+: " { send "password\r" }
+       timeout { puts "Timeout waiting for password prompt."; exit 1; }
+    }
+    expect {
+       "ktutil: " { send "wkt $SASL_AUTH_TEST_PRINCIPAL.keytab\r" }
+    }
+    expect {
+       "ktutil: " { send "q\r" }
+    }
+EOF
 
 echo MOVE KEYTAB
 
 mv  $SASL_AUTH_TEST_KEY_TAB $SASL_AUTH_TEST_KEY_TAB.orgcopy
-
-ls priv
 
 mv $SASL_AUTH_TEST_PRINCIPAL.keytab $SASL_AUTH_TEST_KEY_TAB
 
