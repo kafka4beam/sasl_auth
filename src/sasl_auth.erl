@@ -176,12 +176,15 @@ strip_null_terminate(Bin) ->
             X
     end.
 
-sasl_kinit(_, _) -> erlang:nif_error(nif_not_loaded).
+sasl_kinit(_, _) -> not_loaded(?LINE).
 
-sasl_client_new(_Service, _Host, _Principal) -> erlang:nif_error(nif_not_loaded).
+sasl_client_new(_Service, _Host, _Principal) -> not_loaded(?LINE).
 
-sasl_listmech(_State) -> erlang:nif_error(nif_not_loaded).
+sasl_listmech(_State) -> not_loaded(?LINE).
 
-sasl_client_start(_State) -> erlang:nif_error(nif_not_loaded).
+sasl_client_start(_State) -> not_loaded(?LINE).
 
-sasl_client_step(_State, _Token) -> erlang:nif_error(nif_not_loaded).
+sasl_client_step(_State, _Token) -> not_loaded(?LINE).
+
+not_loaded(Line) ->
+    erlang:nif_error({not_loaded, [{module, ?MODULE}, {line, Line}]}).
