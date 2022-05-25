@@ -53,6 +53,7 @@ RUN yum install -y gcc gcc-c++ make openssl-libs openssl-devel ncurses-devel \
 
 RUN yum install -y libsasl2 libsasl2-dev krb5-workstation cyrus-sasl-devel cyrus-sasl cyrus-sasl-gssapi
 
+RUN yum install -y krb5-server expect
 ############################################
 #  Install Erlang
 ############################################

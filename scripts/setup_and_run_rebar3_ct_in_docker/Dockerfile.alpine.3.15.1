@@ -1,0 +1,85 @@
+ARG BUILD_FROM=alpine:3.15.1
+FROM ${BUILD_FROM}
+
+RUN apk add --no-cache --virtual .build-deps \
+                autoconf \
+                automake \
+                bash \
+                bison \
+                bsd-compat-headers \
+                ca-certificates \
+                coreutils \
+                curl \
+                dpkg-dev dpkg \
+                flex \
+                g++ \
+                gcc \
+                git \
+                jq \
+                libc-dev \
+                libffi-dev \
+                libtool \
+                linux-headers \
+                lksctp-tools-dev \
+                make \
+                ncurses-dev \
+                openjdk8 \
+                openssh-client \
+                openssh-keygen \
+                openssl-dev \
+                py3-pip \
+                python3 \
+                tar \
+                unixodbc-dev \
+                wget \
+                zip \
+                zlib-dev \
+                libsasl \
+                krb5-libs \
+                krb5 \
+                krb5-dev \
+                cyrus-sasl-dev \
+                krb5-server \
+                cyrus-sasl-gssapiv2 \
+                expect \
+                bash
+
+WORKDIR /opt/
+
+RUN mkdir kerl
+
+WORKDIR /opt/kerl
+
+RUN curl -O https://raw.githubusercontent.com/kerl/kerl/master/kerl
+
+RUN chmod a+x kerl
+
+RUN ./kerl build 24.2.1
+
+RUN ./kerl install 24.2.1 /opt/kerl/24.2.1
+
+ENV PATH=$PATH:/opt/kerl/24.2.1/bin
+
+RUN . /opt/kerl/24.2.1/activate
+
+ENV LANG=C.UTF-8
+#############################################
+# Install Rebar3
+#############################################
+
+WORKDIR /opt/
+RUN git clone https://github.com/erlang/rebar3.git
+
+WORKDIR /opt/rebar3
+
+RUN ./bootstrap
+RUN ./rebar3 local install
+
+#############################################
+# Set Environment variables
+#############################################
+
+
+ENV PATH=$PATH:/opt/kerl:/opt/rebar3:/opt/kerl/24.2.1/bin
+ENV LC_ALL=C.UTF-8
+ENV LANG=C.UTF-8

@@ -1,9 +1,15 @@
 #!/usr/bin/env bash
 
-docker images
+if [ -z ${SASL_AUTH_DOCKER_FILE+x} ]
+then
+    SASL_AUTH_DOCKER_FILE=scripts/setup_and_run_rebar3_ct_in_docker/Dockerfile.ubuntu22.04
+fi
+
+SASL_AUTH_DOCKER_IMAGE="sasl_auth_`basename $SASL_AUTH_DOCKER_FILE`:latest"
+SASL_AUTH_DOCKER_IMAGE=`echo $SASL_AUTH_DOCKER_IMAGE | tr '[:upper:]' '[:lower:]'`
 
 docker run --rm \
 -v $(pwd):/sasl_auth \
 -w /sasl_auth \
-sasl_auth_ubuntu_docker:latest \
-scripts/setup_and_run_rebar3_ct_in_docker/setup_and_run.sh
+$SASL_AUTH_DOCKER_IMAGE \
+scripts/setup_and_run_rebar3_ct_in_docker/setup_and_run.sh "$@"

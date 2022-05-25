@@ -21,7 +21,8 @@ RUN apt-get update && apt-get install -y \
     krb5-admin-server \
     libkrb5-dev \
     libsasl2-dev \
-    libsasl2-modules-gssapi-mit
+    libsasl2-modules-gssapi-mit \
+    expect
 
 RUN apt-get clean\
  && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
@@ -65,4 +66,3 @@ RUN ./rebar3 local install
 ENV PATH=$PATH:/opt/kerl:/opt/rebar3:/opt/kerl/24.2.1/bin
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
-
