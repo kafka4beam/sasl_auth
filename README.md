@@ -1,13 +1,19 @@
 sasl_auth
 =====
 
-sasl_auth is a simple wrapper for cyrus sasl library (https://cyrusimap.org/docs/cyrus-sasl/2.1.23/programming.php)
-It helps to implement SASL GSSAPI auth mechanism support in your Erlang application.
+sasl_auth is a simple wrapper for [cyrus sasl
+library](https://www.cyrusimap.org/sasl/). It helps to implement SASL GSSAPI
+auth mechanism support in your Erlang application.
 
 Dependencies
 -----
 
-libsasl2, libsasl2-dev, libkrb5, libkrb5-dev should be installed to build and use sasl_auth
+On Ubuntu the following packages should be installed to build and use
+`sasl_auth` sasl_auth: libkrb5, libkrb5-dev, libsasl2, libsasl2-dev,
+libsasl2-modules-gssapi-mit.
+
+See the dockerfiles in `scripts/setup_and_run_rebar3_ct_in_docker` for
+information about which packages are needed for other Linux distributions.
 
 Build
 -----
@@ -46,7 +52,7 @@ exact steps may depend on the operating system you are using. The following
 steps outlines what needs to be done:
 
 1. Install necessary packages
-   * The dockerfile `scripts/setup_and_run_rebar3_ct_in_docker/Dockerfile`
+   * The dockerfile `scripts/setup_and_run_rebar3_ct_in_docker/Dockerfile.ubuntu22.04`
      contains information about which packages need to be installed in Ubuntu.
 2. Configure a Kerberos server and create a keytab for a user
    * This can be done by following the steps in
@@ -55,9 +61,9 @@ steps outlines what needs to be done:
 3. Export and set the following environment variables to appropriate values:
    
    ```
-export SASL_AUTH_TEST_HOST=example.com  # Host that Kerberos is running on
-export SASL_AUTH_TEST_PRINCIPAL=user  # A user name
-export SASL_AUTH_TEST_KEY_TAB=`pwd`/priv/user.keytab  # Keytab for user
+   export SASL_AUTH_TEST_HOST=example.com  # Host that Kerberos is running on
+   export SASL_AUTH_TEST_PRINCIPAL=user  # A user name
+   export SASL_AUTH_TEST_KEY_TAB=user.keytab  # Keytab for user
    ```
 5. Run the tests:
    
@@ -67,4 +73,5 @@ export SASL_AUTH_TEST_KEY_TAB=`pwd`/priv/user.keytab  # Keytab for user
 Use
 -----
 
-sasl_auth is used in https://github.com/kafka4beam/brod_gssapi - GSSAPI auth backend for brod (https://github.com/kafka4beam/brod) Apache Kafka client library for Erlang/Elixir. See usage details there.
+sasl_auth is used in [brod_gssapi](https://github.com/kafka4beam/brod_gssapi)
+(a GSSAPI authentication backend for [the Apache Kafka client library for Erlang/Elixir brod](https://github.com/kafka4beam/brod). See usage details in the [README file for brod_gssapi](https://github.com/kafka4beam/brod_gssapi).
