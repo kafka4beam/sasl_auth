@@ -6,5 +6,6 @@
     {env, []},
     {modules, []},
     {licenses, ["Apache-2.0"]},
+    {links, [{"Github", "https://github.com/kafka4beam/sasl_auth"}]},
     {exclude_paths, ["priv"]}
 ]}.
