@@ -9,7 +9,7 @@ Dependencies
 -----
 
 On Ubuntu the following packages should be installed to build and use
-`sasl_auth` sasl_auth: libkrb5, libkrb5-dev, libsasl2, libsasl2-dev,
+`sasl_auth`: libkrb5, libkrb5-dev, libsasl2, libsasl2-dev,
 libsasl2-modules-gssapi-mit.
 
 See the dockerfiles in `scripts/setup_and_run_rebar3_ct_in_docker` for
