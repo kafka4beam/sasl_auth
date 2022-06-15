@@ -111,7 +111,34 @@ init() ->
             Dir ->
                 filename:join(Dir, "sasl_auth")
         end,
-    erlang:load_nif(NifLib, 0).
+    RetVal = erlang:load_nif(NifLib, 0),
+    ErrorMsg = 
+        io_lib:format(
+          "Loading of sasl_auth's shared library failed.\n"
+          "The reason for this is probably missing dependencies or that a\n"
+          "dependency has a different version than the ones sasl_auth was compiled with.\n"
+          "Please see https://github.com/kafka4beam/sasl_auth for information\n"
+          "about sasl_auth's dependencies."
+          "SASL/GSSAPI (Kerberos) authentication will probably not work.\n"
+          "\n"
+          "Return Value for erlang:load_nif(~s, 0):\n"
+          "~w",
+          [NifLib, RetVal]),
+    CanFail = application:get_env(sasl_auth,
+                                  fail_on_load_if_load_unsuccessful,
+                                  true),
+    case CanFail of
+        _ when RetVal =:= ok ->
+            ok;
+        true ->
+            logger:error(ErrorMsg),
+            RetVal;
+        false ->
+            %% We will return ok but log a warning message with logger
+            logger:warning(ErrorMsg), 
+            RetVal,
+            ok
+    end.
 
 -spec kinit(KeyTabPath :: keytab_path(), Principal :: principal()) ->
     ok | {error, {binary(), integer(), binary()}}.
