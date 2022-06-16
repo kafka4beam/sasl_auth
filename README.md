@@ -8,12 +8,45 @@ auth mechanism support in your Erlang application.
 Dependencies
 -----
 
+### Ubuntu
+
 On Ubuntu the following packages should be installed to build and use
 `sasl_auth`: libkrb5, libkrb5-dev, libsasl2, libsasl2-dev,
 libsasl2-modules-gssapi-mit.
 
 See the dockerfiles in `scripts/setup_and_run_rebar3_ct_in_docker` for
 information about which packages are needed for other Linux distributions.
+
+### Redhat based distributions
+
+#### Redhat 7 based distribution or compatabile
+
+The following packages are required on Redhat 7 based or compatible distributions :
+cyrus-sasl, cyrus-sasl-devel, cyrus-sasl-gssapi, krb5-devel, and krb5-libs.
+
+Use either yum or dnf (depending on redhat base version) to install cyrus-sasl, cyrus-sasl-gssapi, and krb5-libs.
+
+```shell
+yum install cyrus-sasl cyrus-sasl-devel cyrus-sasl-gssapi krb5-devel krb5-libs
+```
+
+#### Redhat 8 based distributions or compatabile
+
+The following packages are required on Redhat 8 based or compatible distributions :
+cyrus-sasl-libs, cyrus-sasl-devel, cyrus-sasl-gssapi, krb5-devel, and krb5-libs.
+
+
+```shell
+dnf install cyrus-sasl-libs cyrus-sasl-devel cyrus-sasl-gssapi krb5-devel krb5-libs
+```
+
+#### Mac OS
+
+Install `cyrus-sasl` via homebrew, this includes the gssapi module, as well MIT krb5 as a dependency :
+
+```shell
+brew install cyrus-sasl
+```
 
 Build
 -----
@@ -59,14 +92,14 @@ steps outlines what needs to be done:
      `scripts/setup_and_run_rebar3_ct_in_docker/setup_and_run.sh` until the
      command `echo RUN TESTS`.
 3. Export and set the following environment variables to appropriate values:
-   
+
    ```
    export SASL_AUTH_TEST_HOST=example.com  # Host that Kerberos is running on
    export SASL_AUTH_TEST_PRINCIPAL=user  # A user name
    export SASL_AUTH_TEST_KEY_TAB=user.keytab  # Keytab for user
    ```
 5. Run the tests:
-   
+
    `rebar3 ct`
 
 
