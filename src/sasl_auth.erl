@@ -112,18 +112,27 @@ init() ->
                 filename:join(Dir, "sasl_auth")
         end,
     RetVal = erlang:load_nif(NifLib, 0),
-    ErrorMsg = 
-        io_lib:format(
-          "Loading of sasl_auth's shared library failed.\n"
-          "The reason for this is probably missing dependencies or that a\n"
-          "dependency has a different version than the ones sasl_auth was compiled with.\n"
-          "Please see https://github.com/kafka4beam/sasl_auth for information\n"
-          "about sasl_auth's dependencies."
-          "SASL/GSSAPI (Kerberos) authentication will probably not work.\n"
-          "\n"
-          "Return Value for erlang:load_nif(~s, 0):\n"
-          "~w",
-          [NifLib, RetVal]),
+    ErrorMsg =
+        case RetVal of
+            {error, _Reason} = LoadError->
+                Msg = 
+                    io_lib:format(
+                      "Loading of sasl_auth's shared library failed.\n"
+                      "The reason for this is probably missing dependencies or that a\n"
+                      "dependency has a different version than the ones sasl_auth was compiled with.\n"
+                      "Please see https://github.com/kafka4beam/sasl_auth for information\n"
+                      "about sasl_auth's dependencies."
+                      "SASL/GSSAPI (Kerberos) authentication will probably not work.\n"
+                      "\n"
+                      "Return Value for erlang:load_nif(~s, 0):\n"
+                      "~p",
+                      [NifLib, LoadError]),
+                persistent_term:put(sasl_auth_shared_lib_load_error_msg,
+                                    {on_load_error_info, LoadError, Msg}),
+                Msg;
+            _ ->
+                ok
+        end,
     CanFail = application:get_env(sasl_auth,
                                   fail_on_load_if_load_unsuccessful,
                                   true),
@@ -214,4 +223,8 @@ sasl_client_start(_State) -> not_loaded(?LINE).
 sasl_client_step(_State, _Token) -> not_loaded(?LINE).
 
 not_loaded(Line) ->
-    erlang:nif_error({not_loaded, [{module, ?MODULE}, {line, Line}]}).
+    erlang:nif_error({not_loaded,
+                      [{module, ?MODULE},
+                       {line, Line},
+                       persistent_term:get(sasl_auth_shared_lib_load_error_msg,
+                                           no_load_error_saved)]}).
