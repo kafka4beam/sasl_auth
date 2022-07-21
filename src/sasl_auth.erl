@@ -133,10 +133,7 @@ init() ->
             _ ->
                 ok
         end,
-    CanFail = application:get_env(sasl_auth,
-                                  fail_on_load_if_load_unsuccessful,
-                                  true),
-    case CanFail of
+    case application:get_env(sasl_auth, fail_on_load_if_load_unsuccessful, false) of
         _ when RetVal =:= ok ->
             ok;
         true ->
