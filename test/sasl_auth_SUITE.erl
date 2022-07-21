@@ -24,7 +24,7 @@ init_per_suite(Config) ->
     Principal = list_to_binary(os:getenv("SASL_AUTH_TEST_PRINCIPAL", "")),
     Host = list_to_binary(os:getenv("SASL_AUTH_TEST_HOST", "")),
     Service = <<"kafka">>,
-    
+
     case {KeyTab, Principal, Host} of
         {K, P, H} when K =/= <<"">> andalso P =/= <<"">> andalso H =/= <<"">> ->
             ok;
@@ -64,7 +64,7 @@ kinit_keytab_fail_test(Config) ->
 
 kinit_invalid_principal_test(Config) ->
     KeyTab = ?config(keytab, Config),
-    ?assertMatch({error,{<<"krb5_parse_name">>, _, _Msg}}, sasl_auth:kinit(KeyTab, <<"\\">>)).
+    ?assertMatch({error, {<<"krb5_parse_name">>, _, _Msg}}, sasl_auth:kinit(KeyTab, <<"\\">>)).
 
 sasl_client_fail_to_start_test(_) ->
     ?assertError(badarg, sasl_auth:client_start(make_ref())).
