@@ -1,6 +1,6 @@
 {application, sasl_auth, [
     {description, "Simple helper for SASL GSSAPI auth mechanism support in erlang applications"},
-    {vsn, "2.0.2"},
+    {vsn, "2.1.0"},
     {registered, []},
     {applications, [kernel, stdlib]},
     {env, []},

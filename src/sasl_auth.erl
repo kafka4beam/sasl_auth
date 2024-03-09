@@ -11,7 +11,8 @@
     client_new/3,
     client_listmech/1,
     client_start/1,
-    client_step/2
+    client_step/2,
+    client_done/1
 ]).
 -on_load(init/0).
 
@@ -198,6 +199,10 @@ client_step(State, Token) ->
             {error, {code_to_atom(Code), strip_null_terminate(Detail)}}
     end.
 
+-spec client_done(state()) -> ok.
+client_done(State) ->
+    sasl_client_done(State).
+
 code_to_atom(Code) ->
     maps:get(Code, ?SASL_CODES, unknown).
 
@@ -221,6 +226,8 @@ sasl_listmech(_State) -> not_loaded(?LINE).
 sasl_client_start(_State) -> not_loaded(?LINE).
 
 sasl_client_step(_State, _Token) -> not_loaded(?LINE).
+
+sasl_client_done(_State) -> not_loaded(?LINE).
 
 not_loaded(Line) ->
     erlang:nif_error(
