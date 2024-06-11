@@ -12,8 +12,13 @@
     client_listmech/1,
     client_start/1,
     client_step/2,
-    client_done/1
+    client_done/1,
+    server_new/2,
+    server_start/2,
+    server_step/2,
+    server_done/1
 ]).
+
 -on_load(init/0).
 
 -define(SASL_CODES, #{
@@ -203,6 +208,43 @@ client_step(State, Token) ->
 client_done(State) ->
     sasl_client_done(State).
 
+-spec server_new(ServiceName :: service_name(), Principal :: principal()) ->
+    {ok, state()}
+    | {error, sasl_code()}.
+server_new(ServiceName, Principal) ->
+    ServiceName0 = null_terminate(ServiceName),
+    Principal0 = null_terminate(Principal),
+    case sasl_server_new(ServiceName0, Principal0) of
+        {ok, _} = Ret ->
+            Ret;
+        {error, Code} ->
+            {error, code_to_atom(Code)}
+    end.
+
+-spec server_start(State :: state(), binary()) ->
+    {ok, {sasl_code(), binary()}} | {error, {sasl_code(), binary()}}.
+server_start(State, ClientIn) ->
+    case sasl_server_start(State, ClientIn) of
+        {ok, {Code, Token}} ->
+            {ok, {code_to_atom(Code), Token}};
+        {error, {Code, Detail}} ->
+            {error, {code_to_atom(Code), strip_null_terminate(Detail)}}
+    end.
+
+-spec server_step(state(), binary()) ->
+    {ok, {sasl_code(), binary()}} | {error, {sasl_code(), binary()}}.
+server_step(State, Token) ->
+    case sasl_server_step(State, Token) of
+        {ok, {Code, MaybeNewToken}} ->
+            {ok, {code_to_atom(Code), MaybeNewToken}};
+        {error, {Code, Detail}} ->
+            {error, {code_to_atom(Code), strip_null_terminate(Detail)}}
+    end.
+
+-spec server_done(state()) -> ok.
+server_done(State) ->
+    sasl_server_done(State).
+
 code_to_atom(Code) ->
     maps:get(Code, ?SASL_CODES, unknown).
 
@@ -228,6 +270,14 @@ sasl_client_start(_State) -> not_loaded(?LINE).
 sasl_client_step(_State, _Token) -> not_loaded(?LINE).
 
 sasl_client_done(_State) -> not_loaded(?LINE).
+
+sasl_server_new(_Service, _Principal) -> not_loaded(?LINE).
+
+sasl_server_start(_State, _Token) -> not_loaded(?LINE).
+
+sasl_server_step(_State, _Token) -> not_loaded(?LINE).
+
+sasl_server_done(_State) -> not_loaded(?LINE).
 
 not_loaded(Line) ->
     erlang:nif_error(

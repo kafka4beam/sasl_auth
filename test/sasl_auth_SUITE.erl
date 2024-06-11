@@ -20,35 +20,48 @@ all() ->
     ].
 
 init_per_suite(Config) ->
-    KeyTab = list_to_binary(os:getenv("SASL_AUTH_TEST_KEY_TAB", "")),
-    Principal = list_to_binary(os:getenv("SASL_AUTH_TEST_PRINCIPAL", "")),
-    Host = list_to_binary(os:getenv("SASL_AUTH_TEST_HOST", "")),
-    Service = <<"kafka">>,
+    UserKeyTab = get_env(user_keytab, "SASL_AUTH_TEST_KEY_TAB"),
+    UserPrincipal = get_env(user_principal, "SASL_AUTH_TEST_PRINCIPAL"),
+    UserHost = {_, HostRaw} = get_env(user_host, "SASL_AUTH_TEST_HOST"),
+    ServiceKeyTab = get_env(service_keytab, "SASL_AUTH_KAFKA_KEY_TAB"),
+    {_, ServiceName} = get_env(service_principal, "SASL_AUTH_KAFKA_PRINCIPAL"),
+    Host = string:uppercase(HostRaw),
+    ServicePrincipal = <<ServiceName/binary, "@", Host/binary>>,
+    Service = {service, <<"kafka">>},
 
-    case {KeyTab, Principal, Host} of
-        {K, P, H} when K =/= <<"">> andalso P =/= <<"">> andalso H =/= <<"">> ->
-            ok;
-        _ ->
-            ct:fail(
-                "One of SASL_AUTH_TEST_KEY_TAB, SASL_AUTH_TEST_PRINCIPAL, and SASL_AUTH_TEST_HOST not set in env"
-            )
-    end,
-    ok = sasl_auth:kinit(KeyTab, Principal),
+    ok = sasl_auth:kinit(element(2, UserKeyTab), element(2, UserPrincipal)),
+    %% Unable to kinit with service keytab here, only one keytab can be kinit at a time.
 
-    [{keytab, KeyTab}, {principal, Principal}, {host, Host}, {service, Service} | Config].
+    [
+        UserKeyTab, UserPrincipal, UserHost,
+        ServiceKeyTab, {service_principal, ServicePrincipal},
+        Service | Config
+    ].
 
 end_per_suite(_Config) ->
     ok.
 
 kinit_test(Config) ->
-    KeyTab = ?config(keytab, Config),
-    Principal = ?config(principal, Config),
+    KeyTab = ?config(user_keytab, Config),
+    Principal = ?config(user_principal, Config),
     ok = sasl_auth:kinit(KeyTab, Principal).
 
 simple_test(Config) ->
-    {ok, State} = setup_default_client(Config),
-    {ok, [_ | _]} = sasl_auth:client_listmech(State),
-    {ok, _} = sasl_auth:client_start(State).
+    {ok, CliConn} = setup_default_client(Config),
+    {ok, [_ | _]} = sasl_auth:client_listmech(CliConn),
+    {ok, {sasl_continue, ClientToken}} = sasl_auth:client_start(CliConn),
+    {ok, SrvConn} = setup_default_service(Config),
+    {ok, {sasl_continue, ServerToken}} = sasl_auth:server_start(SrvConn, ClientToken),
+    {ok, {sasl_continue, ClientToken1}} = sasl_auth:client_step(CliConn, ServerToken),
+    {ok, {sasl_continue, ServerToken2}} = sasl_auth:server_step(SrvConn, ClientToken1),
+    {ok, {sasl_ok, ClientToken2}} = sasl_auth:client_step(CliConn, ServerToken2),
+    {ok, {sasl_ok, ServerToken3}} = sasl_auth:server_step(SrvConn, ClientToken2),
+    ?assertEqual(<<"">>, ServerToken3),
+    ok = sasl_auth:server_done(SrvConn),
+    ok = sasl_auth:client_done(CliConn),
+    ok.
+
+
 
 delay_run(Config) ->
     {ok, State} = setup_default_client(Config),
@@ -58,12 +71,12 @@ delay_run(Config) ->
     _ = sasl_auth:client_step(State, <<"token">>).
 
 kinit_keytab_fail_test(Config) ->
-    Principal = ?config(principal, Config),
+    Principal = ?config(user_principal, Config),
     Result = sasl_auth:kinit(<<"keytab">>, Principal),
     ?assertMatch({error, {<<"krb5_get_init_creds_keytab">>, _, _}}, Result).
 
 kinit_invalid_principal_test(Config) ->
-    KeyTab = ?config(keytab, Config),
+    KeyTab = ?config(user_keytab, Config),
     ?assertMatch({error, {<<"krb5_parse_name">>, _, _Msg}}, sasl_auth:kinit(KeyTab, <<"\\">>)).
 
 sasl_client_fail_to_start_test(_) ->
@@ -120,7 +133,20 @@ await_results([Worker | Pids], Acc) ->
     end.
 
 setup_default_client(Config) ->
-    Principal = ?config(principal, Config),
-    Host = ?config(host, Config),
+    Principal = ?config(user_principal, Config),
+    Host = ?config(user_host, Config),
     Service = ?config(service, Config),
     sasl_auth:client_new(Service, Host, Principal).
+
+setup_default_service(Config) ->
+    Service = ?config(service, Config),
+    ServiceKeyTab = ?config(service_keytab, Config),
+    ServicePrincipal = ?config(service_principal, Config),
+    ok = sasl_auth:kinit(ServiceKeyTab, ServicePrincipal),
+    sasl_auth:server_new(Service, ServicePrincipal).
+
+get_env(Key, Env) ->
+    case list_to_binary(os:getenv(Env, "")) of
+        <<"">> -> ct:fail(<<"Environment variable not set: ", (list_to_binary(Key))/binary>>);
+        Value -> {Key, Value}
+    end.

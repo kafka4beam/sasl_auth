@@ -25,17 +25,18 @@ kadmin.local addprinc -pw password user@EXAMPLE.COM
 
 echo 'ADD KAFKA PRINCIPAL (NO ACTUAL KAFKA INSTALLATION)'
 
-kadmin.local addprinc -randkey kafka/localhost
-kadmin.local ktadd  kafka/localhost
-
-kadmin.local addprinc -randkey kafka/example.com
-kadmin.local ktadd  kafka/example.com
-
 echo CREATE KEYTAB FOR USER
 
 export SASL_AUTH_TEST_HOST=example.com
 export SASL_AUTH_TEST_KEY_TAB=/sasl_auth/priv/user.keytab
 export SASL_AUTH_TEST_PRINCIPAL=user
+
+rm kafka.keytab
+export SASL_AUTH_KAFKA_KEY_TAB=/sasl_auth/priv/kafka.keytab
+export SASL_AUTH_KAFKA_PRINCIPAL=kafka/example.com
+
+kadmin.local -w password -q "add_principal -randkey kafka/example.com@EXAMPLE.COM"
+kadmin.local -w password -q "ktadd  -k kafka.keytab -norandkey kafka/example.com@EXAMPLE.COM "
 
 ## Unfortunately simply piping to ktutil did not work on Alpine OS so we use
 ## the expect script instead (inspired from code found here
@@ -64,10 +65,12 @@ EOF
 
 echo MOVE KEYTAB
 
-mv  $SASL_AUTH_TEST_KEY_TAB $SASL_AUTH_TEST_KEY_TAB.orgcopy
-
+mv  $SASL_AUTH_TEST_KEY_TAB $SASL_AUTH_TEST_KEY_TAB.orgcopy > /dev/null 2>&1
 mv $SASL_AUTH_TEST_PRINCIPAL.keytab $SASL_AUTH_TEST_KEY_TAB
 
+mv  $SASL_AUTH_KAFKA_KEY_TAB $SASL_AUTH_KAFKA_KEY_TAB.orgcopy > /dev/null 2>&1
+mv  kafka.keytab $SASL_AUTH_KAFKA_KEY_TAB
+cp  $SASL_AUTH_KAFKA_KEY_TAB /etc/krb5.keytab
 echo RUN TESTS
 
 if [ $1 = asan ]
@@ -75,7 +78,7 @@ then
     ./scripts/address_sanitizer/setup.sh
     ./scripts/address_sanitizer/run.sh
 else
-    . /opt/kerl/24.2.1/activate
+    . /opt/kerl/26.2.5/activate
     rebar3 clean
     rebar3 ct
 fi
@@ -93,5 +96,4 @@ rebar3 as test clean
 # Remove _build so we don't get permission problems
 
 rm -rf _build
-
 exit $TEST_RESULT

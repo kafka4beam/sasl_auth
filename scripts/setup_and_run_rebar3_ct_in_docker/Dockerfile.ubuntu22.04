@@ -37,13 +37,13 @@ RUN curl -O https://raw.githubusercontent.com/kerl/kerl/master/kerl
 
 RUN chmod a+x kerl
 
-RUN ./kerl build 24.2.1
+RUN ./kerl build 26.2.5
 
-RUN ./kerl install 24.2.1 /opt/kerl/24.2.1
+RUN ./kerl install 26.2.5 /opt/kerl/26.2.5
 
-ENV PATH=$PATH:/opt/kerl/24.2.1/bin
+ENV PATH=$PATH:/opt/kerl/26.2.5/bin
 
-RUN . /opt/kerl/24.2.1/activate
+RUN . /opt/kerl/26.2.5/activate
 
 ENV LANG=C.UTF-8
 #############################################
@@ -63,6 +63,6 @@ RUN ./rebar3 local install
 #############################################
 
 
-ENV PATH=$PATH:/opt/kerl:/opt/rebar3:/opt/kerl/24.2.1/bin
+ENV PATH=$PATH:/opt/kerl:/opt/rebar3:/opt/kerl/26.2.5/bin
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8

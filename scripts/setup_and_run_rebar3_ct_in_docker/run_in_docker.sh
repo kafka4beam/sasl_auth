@@ -9,6 +9,7 @@ SASL_AUTH_DOCKER_IMAGE="sasl_auth_`basename $SASL_AUTH_DOCKER_FILE`:latest"
 SASL_AUTH_DOCKER_IMAGE=`echo $SASL_AUTH_DOCKER_IMAGE | tr '[:upper:]' '[:lower:]'`
 
 docker run --rm \
+--hostname example.com \
 -v $(pwd):/sasl_auth \
 -w /sasl_auth \
 $SASL_AUTH_DOCKER_IMAGE \
