@@ -18,3 +18,5 @@ _build
 *.so
 priv/*.keytab
 /doc
+*.orgcopy
+krb5.conf
