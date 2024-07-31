@@ -13,8 +13,7 @@ then
     export ERL_TOP=`pwd`
     export PATH=$ERL_TOP/bin:$PATH
 
-    # Checking out OTP-24.2.1
-    git checkout 7bf7f01683acf9b8f09bd8c7331854a9abc17f7d
+    git checkout 26.2.5
     if [ $? != 0 ]
     then
         echo "Could not check out desired Erlang version"
