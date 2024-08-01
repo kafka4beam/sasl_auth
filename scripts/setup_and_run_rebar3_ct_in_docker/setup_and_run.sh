@@ -23,5 +23,4 @@ rebar3 as test clean
 
 # Remove _build so we don't get permission problems
 
-rm -rf _build
 exit $TEST_RESULT
