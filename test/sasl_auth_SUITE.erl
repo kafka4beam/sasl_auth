@@ -21,20 +21,19 @@ all() ->
 
 init_per_suite(Config) ->
     UserKeyTab = get_env(user_keytab, "SASL_AUTH_TEST_KEY_TAB"),
+    UserRealm = get_env(user_realm, "SASL_AUTH_TEST_REALM"),
     UserPrincipal = get_env(user_principal, "SASL_AUTH_TEST_PRINCIPAL"),
-    UserHost = {_, HostRaw} = get_env(user_host, "SASL_AUTH_TEST_HOST"),
+    ServerHost = get_env(server_host, "SASL_AUTH_TEST_SERVER_HOST"),
     ServiceKeyTab = get_env(service_keytab, "SASL_AUTH_KAFKA_KEY_TAB"),
-    {_, ServiceName} = get_env(service_principal, "SASL_AUTH_KAFKA_PRINCIPAL"),
-    Host = string:uppercase(HostRaw),
-    ServicePrincipal = <<ServiceName/binary, "@", Host/binary>>,
+    ServiceName = get_env(service_principal, "SASL_AUTH_KAFKA_PRINCIPAL"),
     Service = {service, <<"kafka">>},
 
     ok = sasl_auth:kinit(element(2, UserKeyTab), element(2, UserPrincipal)),
     %% Unable to kinit with service keytab here, only one keytab can be kinit at a time.
 
     [
-        UserKeyTab, UserPrincipal, UserHost,
-        ServiceKeyTab, {service_principal, ServicePrincipal},
+        UserKeyTab, UserPrincipal, ServerHost, UserRealm,
+        ServiceKeyTab, ServiceName,
         Service | Config
     ].
 
@@ -60,8 +59,6 @@ simple_test(Config) ->
     ok = sasl_auth:server_done(SrvConn),
     ok = sasl_auth:client_done(CliConn),
     ok.
-
-
 
 delay_run(Config) ->
     {ok, State} = setup_default_client(Config),
@@ -134,16 +131,18 @@ await_results([Worker | Pids], Acc) ->
 
 setup_default_client(Config) ->
     Principal = ?config(user_principal, Config),
-    Host = ?config(user_host, Config),
+    Host = ?config(server_host, Config),
     Service = ?config(service, Config),
-    sasl_auth:client_new(Service, Host, Principal).
+    [User | _] = binary:split(Principal, <<"@">>),
+    sasl_auth:client_new(Service, Host, Principal, User).
 
 setup_default_service(Config) ->
     Service = ?config(service, Config),
     ServiceKeyTab = ?config(service_keytab, Config),
     ServicePrincipal = ?config(service_principal, Config),
+    Host = ?config(server_host, Config),
     ok = sasl_auth:kinit(ServiceKeyTab, ServicePrincipal),
-    sasl_auth:server_new(Service, ServicePrincipal).
+    sasl_auth:server_new(Service, ServicePrincipal, Host).
 
 get_env(Key, Env) ->
     case list_to_binary(os:getenv(Env, "")) of

@@ -9,11 +9,13 @@
     init/0,
     kinit/2,
     client_new/3,
+    client_new/4,
     client_listmech/1,
     client_start/1,
     client_step/2,
     client_done/1,
     server_new/2,
+    server_new/3,
     server_start/2,
     server_step/2,
     server_done/1
@@ -60,9 +62,10 @@
 
 -type state() :: reference().
 -type keytab_path() :: file:filename_all().
--type principal() :: binary().
--type service_name() :: binary().
--type host() :: binary().
+-type principal() :: string() | binary().
+-type service_name() :: string() | binary().
+-type host() :: string() | binary().
+-type user() :: string() | binary().
 -type available_mechs() :: [binary()].
 
 -type sasl_code() ::
@@ -160,14 +163,34 @@ init() ->
 kinit(KeyTabPath, Principal) ->
     sasl_kinit(null_terminate(KeyTabPath), null_terminate(Principal)).
 
--spec client_new(ServiceName :: service_name(), Host :: host(), Principal :: principal()) ->
-    {ok, state()}
-    | {error, sasl_code()}.
-client_new(ServiceName, Host, Principal) ->
+%% @doc Initialize a client context. User client's principal as client's username.
+%% This is the default behaviour before version 2.1.1, however may not work when
+%% principal has realm i.e. not the default realm.
+%% e.g. using the full principal like `user/foo.bar@EXAMPLE.COM' may get result in this
+%% error on the server side:
+%% "SASL(-13): authentication failure: Requested identity not authenticated identity"
+%% This is because the client claims to be `user/foo.bar@EXAMPLE.COM' but server
+%% may consider it different from `user/foo.bar' obtained from KDC.
+%% Call `client_new/4' instead!
+-spec client_new(ServiceName :: service_name(), ServerFQDN:: host(), Principal :: principal()) ->
+    {ok, state()} | {error, sasl_code()}.
+client_new(ServiceName, ServerFQDN, Principal) ->
+    client_new(ServiceName, ServerFQDN, Principal, undefined).
+
+%% @doc Initialize a client authentication context.
+%% NOTE: When `User' is `undefined', client principal name is used as username.
+-spec client_new(ServiceName :: service_name(), ServerFQDN :: host(),
+                 Principal :: principal(), User :: undefined | user()) ->
+    {ok, state()} | {error, sasl_code()}.
+client_new(ServiceName, ServerFQDN, Principal, User) ->
     ServiceName0 = null_terminate(ServiceName),
-    Host0 = null_terminate(Host),
+    Host0 = null_terminate(ServerFQDN),
     Principal0 = null_terminate(Principal),
-    case sasl_client_new(ServiceName0, Host0, Principal0) of
+    User0 = case User =:= undefined of
+                true -> binary:copy(Principal0);
+                _ -> null_terminate(User)
+            end,
+    case sasl_client_new(ServiceName0, Host0, Principal0, User0) of
         {ok, _} = Ret ->
             Ret;
         {error, Code} ->
@@ -208,13 +231,25 @@ client_step(State, Token) ->
 client_done(State) ->
     sasl_client_done(State).
 
+%% @doc Initialize server side authentication context.
+%% NOTE: This depends on the server `gethostname()' to be resolved exactly the
+%% same as the FQDN the clients intend to connect.
 -spec server_new(ServiceName :: service_name(), Principal :: principal()) ->
     {ok, state()}
     | {error, sasl_code()}.
 server_new(ServiceName, Principal) ->
+    server_new(ServiceName, Principal, <<>>).
+
+%% @doc Initialize server side authentication context.
+%% ServerFQDN is useful when serer is multi-home. e.g. behind a load-balancer.
+-spec server_new(ServiceName :: service_name(), Principal :: principal(), ServerFQDN :: host()) ->
+    {ok, state()}
+    | {error, sasl_code()}.
+server_new(ServiceName, Principal, ServerFQDN) ->
     ServiceName0 = null_terminate(ServiceName),
     Principal0 = null_terminate(Principal),
-    case sasl_server_new(ServiceName0, Principal0) of
+    ServerFQDN0 = null_terminate(ServerFQDN),
+    case sasl_server_new(ServiceName0, ServerFQDN0, Principal0) of
         {ok, _} = Ret ->
             Ret;
         {error, Code} ->
@@ -261,7 +296,7 @@ strip_null_terminate(Bin) ->
 
 sasl_kinit(_, _) -> not_loaded(?LINE).
 
-sasl_client_new(_Service, _Host, _Principal) -> not_loaded(?LINE).
+sasl_client_new(_Service, _Host, _Principal, _User) -> not_loaded(?LINE).
 
 sasl_listmech(_State) -> not_loaded(?LINE).
 
@@ -271,7 +306,7 @@ sasl_client_step(_State, _Token) -> not_loaded(?LINE).
 
 sasl_client_done(_State) -> not_loaded(?LINE).
 
-sasl_server_new(_Service, _Principal) -> not_loaded(?LINE).
+sasl_server_new(_Service, _ServerFQDN, _Principal) -> not_loaded(?LINE).
 
 sasl_server_start(_State, _Token) -> not_loaded(?LINE).
 
