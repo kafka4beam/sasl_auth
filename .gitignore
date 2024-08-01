@@ -20,3 +20,4 @@ priv/*.keytab
 /doc
 *.orgcopy
 krb5.conf
+*.keytab

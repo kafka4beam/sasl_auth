@@ -14,7 +14,8 @@ KRB5_SERER="kerberos.$NET"
 CLI="cli.$NET"
 SRV="srv.$NET"
 SERVICE='kafka'
-CLI_PRINC="user@${REALM}"
+CLI_NAME="client/$CLI"
+CLI_PRINC="${CLI_NAME}@${REALM}"
 SRV_PRINC="$SERVICE/${SRV}@${REALM}"
 
 cleanup() {
@@ -31,9 +32,6 @@ docker network create "$NET"
 
 docker run -d \
     --net "$NET" \
-    -e KRB5_REALM="$REALM" \
-    -e KRB5_KDC="$KRB5_SERER" \
-    -e KRB5_PASS=public \
     --hostname $KRB5_SERER \
     --name $KRB5_SERER \
     -v $(pwd):/sasl_auth \
@@ -52,6 +50,7 @@ docker run -d \
     -e SERVICE=${SERVICE} \
     -e CLI_PRINC="${CLI_PRINC}" \
     -e SRV_PRINC="${SRV_PRINC}" \
+    -e CLI_NAME="${CLI_NAME}" \
     $ERLANGE_IMAGE bash -c 'sleep 100000'
 
 docker run -d \
@@ -66,15 +65,23 @@ docker run -d \
     $ERLANGE_IMAGE bash -c 'sleep 100000'
 
 echo 'wait for krb5 server to be ready'
-sleep 5
+sleep 3
 
 docker cp $KRB5_SERER:/etc/krb5.conf ./krb5.conf
 docker cp krb5.conf $CLI:/etc/krb5.conf
 docker cp krb5.conf $SRV:/etc/krb5.conf
 
-# It seems the server must have keytab file in /etc/krb5.keytab
-docker exec $SRV cp /sasl_auth/priv/kafka.keytab /etc/krb5.keytab
+rm -f cli.keytab srv.keytab
+docker exec $KRB5_SERER kadmin.local -q "addprinc -randkey $SRV_PRINC"
+docker exec $KRB5_SERER kadmin.local -q "addprinc -randkey $CLI_PRINC"
+docker exec $KRB5_SERER kadmin.local -q "ktadd -k srv.keytab -norandkey $SRV_PRINC"
+docker exec $KRB5_SERER kadmin.local -q "ktadd -k cli.keytab -norandkey $CLI_PRINC"
+
+sudo chmod 644 *.keytab
+
+## This seems to be a must for now.
+docker cp srv.keytab $SRV:/etc/krb5.keytab
 
 ## run client and server in two different shells:
-# docker exec -it cli.example.com erl -sname cli -setcookie abcd -pa _build/default/lib/sasl_auth/ebin -eval 'int_test:start().'
-# docker exec -it srv.example.com erl -sname cli -setcookie abcd -pa _build/default/lib/sasl_auth/ebin -eval 'int_test:start().'
+#docker exec -it cli.example.com erl -sname cli -setcookie abcd -pa _build/default/lib/sasl_auth/ebin -eval 'int_test:start().'
+#docker exec -it srv.example.com erl -sname cli -setcookie abcd -pa _build/default/lib/sasl_auth/ebin -eval 'int_test:start().'

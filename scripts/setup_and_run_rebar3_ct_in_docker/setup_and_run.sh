@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 
+echo 'SETUP'
+
 source ./scripts/setup_and_run_rebar3_ct_in_docker/setup.sh
 
-echo RUN TESTS
+echo 'RUN TESTS'
 
 if [ "${1:-}" = asan ]
 then
@@ -16,11 +18,11 @@ fi
 
 TEST_RESULT=$?
 
-echo CLEANUP
+echo 'CLEANUP'
 
 rebar3 clean
 rebar3 as test clean
 
 # Remove _build so we don't get permission problems
 
-exit $TEST_RESULT
+exit "$TEST_RESULT"

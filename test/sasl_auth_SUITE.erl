@@ -133,7 +133,8 @@ setup_default_client(Config) ->
     Principal = ?config(user_principal, Config),
     Host = ?config(server_host, Config),
     Service = ?config(service, Config),
-    sasl_auth:client_new(Service, Host, Principal).
+    [User | _] = binary:split(Principal, <<"@">>),
+    sasl_auth:client_new(Service, Host, Principal, User).
 
 setup_default_service(Config) ->
     Service = ?config(service, Config),

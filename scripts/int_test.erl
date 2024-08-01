@@ -16,8 +16,8 @@ start() ->
 run_cli() ->
     Service = env("SERVICE"),
     maybe
-        ok = sasl_auth:kinit("priv/user.keytab", env("CLI_PRINC")),
-        {ok, C} ?= sasl_auth:client_new(Service, env("SRV"), env("CLI_PRINC")),
+        ok = sasl_auth:kinit("cli.keytab", env("CLI_PRINC")),
+        {ok, C} ?= sasl_auth:client_new(Service, env("SRV"), env("CLI_PRINC"), env("CLI_NAME")),
         Pid = wait_for_server(),
         {ok, AvaialbeMecs} ?= sasl_auth:client_listmech(C),
         true = lists:member(<<"GSSAPI">>, AvaialbeMecs),
@@ -42,7 +42,7 @@ run_cli() ->
 run_srv() ->
     Service = env("SERVICE"),
     maybe
-        ok ?= sasl_auth:kinit("priv/kafka.keytab", env("SRV_PRINC")),
+        ok ?= sasl_auth:kinit("srv.keytab", env("SRV_PRINC")),
         {ok, S} ?= sasl_auth:server_new(Service, env("SRV_PRINC")),
         catch register(srv, self()),
         {Pid, CT1} =
