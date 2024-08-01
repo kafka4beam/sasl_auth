@@ -227,6 +227,8 @@ static int sasl_auth_process_check(ErlNifEnv* env, sasl_state_t* state)
 static ERL_NIF_TERM sasl_cli_new(ErlNifEnv* env, int UNUSED(argc), const ERL_NIF_TERM argv[])
 {
     ErlNifBinary service, serverfqdn, principal, user;
+    ERL_NIF_TERM return_state;
+
     sasl_state_t* state = NULL;
 
     if ((!enif_inspect_binary(env, argv[0], &service))
@@ -285,9 +287,9 @@ static ERL_NIF_TERM sasl_cli_new(ErlNifEnv* env, int UNUSED(argc), const ERL_NIF
     enif_mutex_unlock(state->controller_lock);
     switch (result) {
     case SASL_OK:
-        ERL_NIF_TERM term = enif_make_resource(env, state);
+        return_state = enif_make_resource(env, state);
         enif_release_resource(state);
-        return OK_TUPLE(env, term);
+        return OK_TUPLE(env, return_state);
     default:
         enif_free(state->principal);
         state->principal = NULL;
@@ -454,6 +456,7 @@ static ERL_NIF_TERM sasl_cli_done(ErlNifEnv* env, int UNUSED(argc), const ERL_NI
 static ERL_NIF_TERM sasl_srv_new(ErlNifEnv* env, int UNUSED(argc), const ERL_NIF_TERM argv[])
 {
     ErlNifBinary service, serverfqdn, principal;
+    ERL_NIF_TERM return_state;
 
     if ((!enif_inspect_binary(env, argv[0], &service))
         || (!enif_inspect_binary(env, argv[1], &serverfqdn))
@@ -509,9 +512,9 @@ static ERL_NIF_TERM sasl_srv_new(ErlNifEnv* env, int UNUSED(argc), const ERL_NIF
 
     switch (result) {
     case SASL_OK:
-        ERL_NIF_TERM term = enif_make_resource(env, state);
+        return_state = enif_make_resource(env, state);
         enif_release_resource(state);
-        return OK_TUPLE(env, term);
+        return OK_TUPLE(env, return_state);
     default:
         enif_free(state->principal);
         state->principal = NULL;
