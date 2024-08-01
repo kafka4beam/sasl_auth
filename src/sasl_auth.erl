@@ -14,6 +14,7 @@
     client_step/2,
     client_done/1,
     server_new/2,
+    server_new/3,
     server_start/2,
     server_step/2,
     server_done/1
@@ -208,13 +209,25 @@ client_step(State, Token) ->
 client_done(State) ->
     sasl_client_done(State).
 
+%% @doc Initialize server side authentication context.
+%% NOTE: This depends on the server `gethostname()' to be resolved exactly the
+%% same as the FQDN the clients intend to connect.
 -spec server_new(ServiceName :: service_name(), Principal :: principal()) ->
     {ok, state()}
     | {error, sasl_code()}.
 server_new(ServiceName, Principal) ->
+    server_new(ServiceName, Principal, <<>>).
+
+%% @doc Initialize server side authentication context.
+%% ServerFQDN is useful when serer is multi-home. e.g. behind a load-balancer.
+-spec server_new(ServiceName :: service_name(), Principal :: principal(), ServerFQDN :: host()) ->
+    {ok, state()}
+    | {error, sasl_code()}.
+server_new(ServiceName, Principal, ServerFQDN) ->
     ServiceName0 = null_terminate(ServiceName),
     Principal0 = null_terminate(Principal),
-    case sasl_server_new(ServiceName0, Principal0) of
+    ServerFQDN0 = null_terminate(ServerFQDN),
+    case sasl_server_new(ServiceName0, ServerFQDN0, Principal0) of
         {ok, _} = Ret ->
             Ret;
         {error, Code} ->
@@ -271,7 +284,7 @@ sasl_client_step(_State, _Token) -> not_loaded(?LINE).
 
 sasl_client_done(_State) -> not_loaded(?LINE).
 
-sasl_server_new(_Service, _Principal) -> not_loaded(?LINE).
+sasl_server_new(_Service, _ServerFQDN, _Principal) -> not_loaded(?LINE).
 
 sasl_server_start(_State, _Token) -> not_loaded(?LINE).
 

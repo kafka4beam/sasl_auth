@@ -442,10 +442,11 @@ static ERL_NIF_TERM sasl_cli_done(ErlNifEnv* env, int UNUSED(argc), const ERL_NI
 // server begin
 static ERL_NIF_TERM sasl_srv_new(ErlNifEnv* env, int UNUSED(argc), const ERL_NIF_TERM argv[])
 {
-    ErlNifBinary service, principal;
+    ErlNifBinary service, serverfqdn, principal;
 
     if ((!enif_inspect_binary(env, argv[0], &service))
-        || (!enif_inspect_binary(env, argv[1], &principal))) {
+        || (!enif_inspect_binary(env, argv[1], &serverfqdn))
+        || (!enif_inspect_binary(env, argv[2], &principal))) {
         return enif_make_badarg(env);
     }
 
@@ -458,7 +459,18 @@ static ERL_NIF_TERM sasl_srv_new(ErlNifEnv* env, int UNUSED(argc), const ERL_NIF
     }
 
     state->mech_set = 0;
-    state->host = NULL;
+    if(serverfqdn.size == 1) {
+        // null-terminate string, 1 means empty.
+        // this means server hostname will be resolved from gethostname() later.
+        state->host = NULL;
+    }
+    else{
+        state->host = copy_bin(serverfqdn);
+        if (state->host == NULL) {
+            return ERROR_TUPLE(env, ATOM_OOM);
+        }
+    }
+
 
     enif_self(env, &state->controlling_process);
 
@@ -481,7 +493,7 @@ static ERL_NIF_TERM sasl_srv_new(ErlNifEnv* env, int UNUSED(argc), const ERL_NIF
     memcpy(state->callbacks, callbacks, sizeof(callbacks));
 
     int result = sasl_server_new(
-        (const char*)state->service, NULL, NULL, NULL, NULL, state->callbacks, 0, &state->conn);
+        (const char*)state->service, (const char*)state->host, NULL, NULL, NULL, state->callbacks, 0, &state->conn);
     ERL_NIF_TERM term = enif_make_resource(env, state);
 
     switch (result) {
@@ -735,7 +747,7 @@ static ErlNifFunc nif_funcs[]
           { "sasl_client_step", 2, sasl_cli_step, ERL_NIF_DIRTY_JOB_CPU_BOUND },
           { "sasl_client_done", 1, sasl_cli_done, ERL_NIF_DIRTY_JOB_CPU_BOUND },
           { "sasl_kinit", 2, sasl_kinit, ERL_NIF_DIRTY_JOB_CPU_BOUND },
-          { "sasl_server_new", 2, sasl_srv_new, ERL_NIF_DIRTY_JOB_CPU_BOUND },
+          { "sasl_server_new", 3, sasl_srv_new, ERL_NIF_DIRTY_JOB_CPU_BOUND },
           { "sasl_server_start", 2, sasl_srv_start, ERL_NIF_DIRTY_JOB_CPU_BOUND },
           { "sasl_server_step", 2, sasl_srv_step, ERL_NIF_DIRTY_JOB_CPU_BOUND },
           { "sasl_server_done", 1, sasl_srv_done, ERL_NIF_DIRTY_JOB_CPU_BOUND } };

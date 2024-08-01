@@ -31,7 +31,7 @@ echo CREATE KEYTAB FOR USER
 
 export SASL_AUTH_TEST_KEY_TAB=/sasl_auth/priv/user.keytab
 export SASL_AUTH_TEST_PRINCIPAL=user
-export SASL_AUTH_TEST_SERVER_HOST='example.com'
+export SASL_AUTH_TEST_SERVER_HOST='srv.example.com'
 
 export SASL_AUTH_KAFKA_KEY_TAB=/sasl_auth/priv/kafka.keytab
 export SASL_AUTH_KAFKA_PRINCIPAL="kafka/${SASL_AUTH_TEST_SERVER_HOST}@${SASL_AUTH_TEST_REALM}"

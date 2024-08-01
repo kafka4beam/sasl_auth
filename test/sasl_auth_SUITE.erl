@@ -139,8 +139,9 @@ setup_default_service(Config) ->
     Service = ?config(service, Config),
     ServiceKeyTab = ?config(service_keytab, Config),
     ServicePrincipal = ?config(service_principal, Config),
+    Host = ?config(server_host, Config),
     ok = sasl_auth:kinit(ServiceKeyTab, ServicePrincipal),
-    sasl_auth:server_new(Service, ServicePrincipal).
+    sasl_auth:server_new(Service, ServicePrincipal, Host).
 
 get_env(Key, Env) ->
     case list_to_binary(os:getenv(Env, "")) of
