@@ -283,11 +283,9 @@ static ERL_NIF_TERM sasl_cli_new(ErlNifEnv* env, int UNUSED(argc), const ERL_NIF
         state->callbacks, 0, &state->conn);
 
     enif_mutex_unlock(state->controller_lock);
-
-    ERL_NIF_TERM term = enif_make_resource(env, state);
-
     switch (result) {
     case SASL_OK:
+        ERL_NIF_TERM term = enif_make_resource(env, state);
         enif_release_resource(state);
         return OK_TUPLE(env, term);
     default:
@@ -508,10 +506,10 @@ static ERL_NIF_TERM sasl_srv_new(ErlNifEnv* env, int UNUSED(argc), const ERL_NIF
 
     int result = sasl_server_new(
         (const char*)state->service, (const char*)state->host, NULL, NULL, NULL, state->callbacks, 0, &state->conn);
-    ERL_NIF_TERM term = enif_make_resource(env, state);
 
     switch (result) {
     case SASL_OK:
+        ERL_NIF_TERM term = enif_make_resource(env, state);
         enif_release_resource(state);
         return OK_TUPLE(env, term);
     default:
