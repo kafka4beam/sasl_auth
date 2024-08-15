@@ -30,6 +30,8 @@ static ERL_NIF_TERM ATOM_NOT_CONTROLLING_PROCESS;
 #define SASL_ERROR_TUPLE(env, state, code)                                                         \
     ERROR_TUPLE(env, enif_make_tuple2(env, enif_make_int(env, code), sasl_error(env, state)));
 
+#define KT_NAME_LEN 1024
+
 typedef struct {
     sasl_conn_t* conn;
     sasl_callback_t callbacks[16];
@@ -641,7 +643,7 @@ static ERL_NIF_TERM sasl_krb5_kt_default_name(ErlNifEnv* env, int UNUSED(argc), 
 {
     krb5_context context;
     krb5_error_code ret;
-    char name[1024];
+    char name[KT_NAME_LEN];
     ret = krb5_init_context(&context);
     if (ret) {
         return enif_make_badarg(env);
@@ -654,13 +656,17 @@ static ERL_NIF_TERM sasl_krb5_kt_default_name(ErlNifEnv* env, int UNUSED(argc), 
     }
 
     ErlNifBinary retbin;
-    enif_alloc_binary(strlen(name), &retbin);
-    memcpy(retbin.data, name, retbin.size);
-
-    ERL_NIF_TERM result = enif_make_binary(env, &retbin);
-
-    krb5_free_context(context);
-    return result;
+    if (enif_alloc_binary(strlen(name), &retbin))
+    {
+        memcpy(retbin.data, name, retbin.size);
+        ERL_NIF_TERM result = enif_make_binary(env, &retbin);
+        krb5_free_context(context);
+        return result;
+    }
+    else
+    {
+        return enif_raise_exception(env, ATOM_OOM);
+    }
 }
 
 static ERL_NIF_TERM sasl_kinit(ErlNifEnv* env, int UNUSED(argc), const ERL_NIF_TERM argv[])
