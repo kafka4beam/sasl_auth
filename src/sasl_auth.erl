@@ -18,7 +18,8 @@
     server_new/3,
     server_start/2,
     server_step/2,
-    server_done/1
+    server_done/1,
+    krb5_kt_default_name/0
 ]).
 
 -on_load(init/0).
@@ -293,6 +294,10 @@ strip_null_terminate(Bin) ->
         [X] ->
             X
     end.
+
+krb5_kt_default_name() -> sasl_krb5_kt_default_name().
+
+sasl_krb5_kt_default_name() -> not_loaded(?LINE).
 
 sasl_kinit(_, _) -> not_loaded(?LINE).
 

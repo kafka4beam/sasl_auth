@@ -637,6 +637,32 @@ static ERL_NIF_TERM sasl_srv_done(ErlNifEnv* env, int UNUSED(argc), const ERL_NI
 }
 // server end
 
+static ERL_NIF_TERM sasl_krb5_kt_default_name(ErlNifEnv* env, int UNUSED(argc), const ERL_NIF_TERM UNUSED(argv[]))
+{
+    krb5_context context;
+    krb5_error_code ret;
+    char name[1024];
+    ret = krb5_init_context(&context);
+    if (ret) {
+        return enif_make_badarg(env);
+    }
+
+    ret = krb5_kt_default_name(context, name, sizeof(name) - 1);
+    if (ret) {
+        krb5_free_context(context);
+        return enif_make_badarg(env);
+    }
+
+    ErlNifBinary retbin;
+    enif_alloc_binary(strlen(name), &retbin);
+    memcpy(retbin.data, name, retbin.size);
+
+    ERL_NIF_TERM result = enif_make_binary(env, &retbin);
+
+    krb5_free_context(context);
+    return result;
+}
+
 static ERL_NIF_TERM sasl_kinit(ErlNifEnv* env, int UNUSED(argc), const ERL_NIF_TERM argv[])
 {
 
@@ -765,6 +791,8 @@ static ErlNifFunc nif_funcs[]
           { "sasl_server_new", 3, sasl_srv_new, ERL_NIF_DIRTY_JOB_CPU_BOUND },
           { "sasl_server_start", 2, sasl_srv_start, ERL_NIF_DIRTY_JOB_CPU_BOUND },
           { "sasl_server_step", 2, sasl_srv_step, ERL_NIF_DIRTY_JOB_CPU_BOUND },
-          { "sasl_server_done", 1, sasl_srv_done, ERL_NIF_DIRTY_JOB_CPU_BOUND } };
+          { "sasl_server_done", 1, sasl_srv_done, ERL_NIF_DIRTY_JOB_CPU_BOUND },
+          { "sasl_krb5_kt_default_name", 0, sasl_krb5_kt_default_name, ERL_NIF_DIRTY_JOB_CPU_BOUND }
+       };
 
 ERL_NIF_INIT(sasl_auth, nif_funcs, &load, NULL, &upgrade, &unload)
