@@ -42,7 +42,9 @@ run_cli() ->
 run_srv() ->
     Service = env("SERVICE"),
     maybe
-        ok ?= sasl_auth:kinit("srv.keytab", env("SRV_PRINC")),
+        %% server always init from default keytab anyway,
+        %% so doing kinit here doesn't really do anything
+        %ok ?= sasl_auth:kinit("srv.keytab", env("SRV_PRINC")),
         {ok, S} ?= sasl_auth:server_new(Service, env("SRV_PRINC")),
         catch register(srv, self()),
         {Pid, CT1} =

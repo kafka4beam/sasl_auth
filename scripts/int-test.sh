@@ -62,6 +62,7 @@ docker run -d \
     -e REALM=${REALM} \
     -e SERVICE=${SERVICE} \
     -e SRV_PRINC="${SRV_PRINC}" \
+    -e KRB5_KTNAME=FILE:/sasl_auth/srv.keytab \
     $ERLANGE_IMAGE bash -c 'sleep 100000'
 
 echo 'wait for krb5 server to be ready'
@@ -80,8 +81,8 @@ docker exec $KRB5_SERER kadmin.local -q "ktadd -k cli.keytab -norandkey $CLI_PRI
 sudo chmod 644 *.keytab
 
 ## This seems to be a must for now.
-docker cp srv.keytab $SRV:/etc/krb5.keytab
+#docker cp srv.keytab $SRV:/etc/krb5.keytab
 
 ## run client and server in two different shells:
-#docker exec -it cli.example.com erl -sname cli -setcookie abcd -pa _build/default/lib/sasl_auth/ebin -eval 'int_test:start().'
-#docker exec -it srv.example.com erl -sname cli -setcookie abcd -pa _build/default/lib/sasl_auth/ebin -eval 'int_test:start().'
+echo 'docker exec -it cli.example.com erl -sname cli -setcookie abcd -pa _build/default/lib/sasl_auth/ebin -eval "int_test:start()."'
+echo 'docker exec -it srv.example.com erl -sname srv -setcookie abcd -pa _build/default/lib/sasl_auth/ebin -eval "int_test:start()."'

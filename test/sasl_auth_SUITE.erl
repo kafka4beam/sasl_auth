@@ -6,6 +6,7 @@
 
 all() ->
     [
+        default_keytab_test,
         kinit_test,
         simple_test,
         kinit_keytab_fail_test,
@@ -39,6 +40,9 @@ init_per_suite(Config) ->
 
 end_per_suite(_Config) ->
     ok.
+
+default_keytab_test(_Config) ->
+    ?assertMatch(<<"FILE:", _/binary>>, sasl_auth:krb5_kt_default_name()).
 
 kinit_test(Config) ->
     KeyTab = ?config(user_keytab, Config),

@@ -30,6 +30,8 @@ static ERL_NIF_TERM ATOM_NOT_CONTROLLING_PROCESS;
 #define SASL_ERROR_TUPLE(env, state, code)                                                         \
     ERROR_TUPLE(env, enif_make_tuple2(env, enif_make_int(env, code), sasl_error(env, state)));
 
+#define KT_NAME_LEN 1024
+
 typedef struct {
     sasl_conn_t* conn;
     sasl_callback_t callbacks[16];
@@ -227,6 +229,8 @@ static int sasl_auth_process_check(ErlNifEnv* env, sasl_state_t* state)
 static ERL_NIF_TERM sasl_cli_new(ErlNifEnv* env, int UNUSED(argc), const ERL_NIF_TERM argv[])
 {
     ErlNifBinary service, serverfqdn, principal, user;
+    ERL_NIF_TERM return_state;
+
     sasl_state_t* state = NULL;
 
     if ((!enif_inspect_binary(env, argv[0], &service))
@@ -285,9 +289,9 @@ static ERL_NIF_TERM sasl_cli_new(ErlNifEnv* env, int UNUSED(argc), const ERL_NIF
     enif_mutex_unlock(state->controller_lock);
     switch (result) {
     case SASL_OK:
-        ERL_NIF_TERM term = enif_make_resource(env, state);
+        return_state = enif_make_resource(env, state);
         enif_release_resource(state);
-        return OK_TUPLE(env, term);
+        return OK_TUPLE(env, return_state);
     default:
         enif_free(state->principal);
         state->principal = NULL;
@@ -454,6 +458,7 @@ static ERL_NIF_TERM sasl_cli_done(ErlNifEnv* env, int UNUSED(argc), const ERL_NI
 static ERL_NIF_TERM sasl_srv_new(ErlNifEnv* env, int UNUSED(argc), const ERL_NIF_TERM argv[])
 {
     ErlNifBinary service, serverfqdn, principal;
+    ERL_NIF_TERM return_state;
 
     if ((!enif_inspect_binary(env, argv[0], &service))
         || (!enif_inspect_binary(env, argv[1], &serverfqdn))
@@ -509,9 +514,9 @@ static ERL_NIF_TERM sasl_srv_new(ErlNifEnv* env, int UNUSED(argc), const ERL_NIF
 
     switch (result) {
     case SASL_OK:
-        ERL_NIF_TERM term = enif_make_resource(env, state);
+        return_state = enif_make_resource(env, state);
         enif_release_resource(state);
-        return OK_TUPLE(env, term);
+        return OK_TUPLE(env, return_state);
     default:
         enif_free(state->principal);
         state->principal = NULL;
@@ -633,6 +638,36 @@ static ERL_NIF_TERM sasl_srv_done(ErlNifEnv* env, int UNUSED(argc), const ERL_NI
     return ret;
 }
 // server end
+
+static ERL_NIF_TERM sasl_krb5_kt_default_name(ErlNifEnv* env, int UNUSED(argc), const ERL_NIF_TERM UNUSED(argv[]))
+{
+    krb5_context context;
+    krb5_error_code ret;
+    char name[KT_NAME_LEN];
+    ret = krb5_init_context(&context);
+    if (ret) {
+        return enif_make_badarg(env);
+    }
+
+    ret = krb5_kt_default_name(context, name, sizeof(name) - 1);
+    if (ret) {
+        krb5_free_context(context);
+        return enif_make_badarg(env);
+    }
+
+    ErlNifBinary retbin;
+    if (enif_alloc_binary(strlen(name), &retbin))
+    {
+        memcpy(retbin.data, name, retbin.size);
+        ERL_NIF_TERM result = enif_make_binary(env, &retbin);
+        krb5_free_context(context);
+        return result;
+    }
+    else
+    {
+        return enif_raise_exception(env, ATOM_OOM);
+    }
+}
 
 static ERL_NIF_TERM sasl_kinit(ErlNifEnv* env, int UNUSED(argc), const ERL_NIF_TERM argv[])
 {
@@ -762,6 +797,8 @@ static ErlNifFunc nif_funcs[]
           { "sasl_server_new", 3, sasl_srv_new, ERL_NIF_DIRTY_JOB_CPU_BOUND },
           { "sasl_server_start", 2, sasl_srv_start, ERL_NIF_DIRTY_JOB_CPU_BOUND },
           { "sasl_server_step", 2, sasl_srv_step, ERL_NIF_DIRTY_JOB_CPU_BOUND },
-          { "sasl_server_done", 1, sasl_srv_done, ERL_NIF_DIRTY_JOB_CPU_BOUND } };
+          { "sasl_server_done", 1, sasl_srv_done, ERL_NIF_DIRTY_JOB_CPU_BOUND },
+          { "sasl_krb5_kt_default_name", 0, sasl_krb5_kt_default_name, ERL_NIF_DIRTY_JOB_CPU_BOUND }
+       };
 
 ERL_NIF_INIT(sasl_auth, nif_funcs, &load, NULL, &upgrade, &unload)
