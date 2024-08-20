@@ -1,1 +1,4 @@
-[].
+[{<<"pbkdf2">>,
+  {git,"https://github.com/emqx/erlang-pbkdf2.git",
+       {ref,"45d9981209ea07a83a58cf85aaf8236457da4342"}},
+  0}].

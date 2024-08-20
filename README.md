@@ -1,12 +1,11 @@
-sasl_auth
-=====
+# SASL Authentication Library for Erlang/Elixir
 
-sasl_auth is a simple wrapper for [cyrus sasl
-library](https://www.cyrusimap.org/sasl/). It helps to implement SASL GSSAPI
-auth mechanism support in your Erlang application.
+This library provides two SASL implementations
+- The `sasl_auth` module implements a simple wrapper for [cyrus sasl library](https://www.cyrusimap.org/sasl/).
+  It helps to implement SASL GSSAPI auth mechanism support in your Erlang application.
+- The `sasl_auth_scram` module implements SASL SCRAM authentication functions.
 
-Dependencies
------
+## Dependencies
 
 ### Ubuntu
 
@@ -48,19 +47,21 @@ Install `cyrus-sasl` via homebrew, this includes the gssapi module, as well MIT 
 brew install cyrus-sasl
 ```
 
-Build
------
+## Build
 
-    $ rebar3 compile
+```
+$ rebar3 compile
+```
 
 
-Test
-----
+## Test
 
 You can execute the tests with the following command (if you have
 [Docker](https://www.docker.com/) installed):
 
-    $ `./scripts/setup_and_run_rebar3_ct_in_docker.sh`
+```
+./scripts/setup_and_run_rebar3_ct_in_docker.sh
+```
 
 By default, the script above runs the test in a docker container that is
 created from a docker image that is described in the file
@@ -69,15 +70,18 @@ change the dockerfile by specifying the environment
 variable `SASL_AUTH_DOCKER_FILE`. The following command will run
 the tests in a Centos7 docker image:
 
-    $ `SASL_AUTH_DOCKER_FILE=scripts/setup_and_run_rebar3_ct_in_docker/Dockerfile.centos7 ./scripts/setup_and_run_rebar3_ct_in_docker.sh`
-
+```
+SASL_AUTH_DOCKER_FILE=scripts/setup_and_run_rebar3_ct_in_docker/Dockerfile.centos7 ./scripts/setup_and_run_rebar3_ct_in_docker.sh
+```
 
 You can execute the following command to run the tests in a docker container
 with Erlang/OTP and the NIF library compiled with [address
 sanitizer](https://github.com/google/sanitizers/wiki/AddressSanitizer) (finds
 memory errors and leaks):
 
-    $ `./scripts/setup_and_run_rebar3_ct_in_docker.sh` asan
+```
+./scripts/setup_and_run_rebar3_ct_in_docker.sh asan
+```
 
 
 It is a little bit more complicated to run the tests without Docker and the
@@ -103,8 +107,14 @@ steps outlines what needs to be done:
    `rebar3 ct`
 
 
-Use
------
+## References
 
-sasl_auth is used in [brod_gssapi](https://github.com/kafka4beam/brod_gssapi)
-(a GSSAPI authentication backend for [the Apache Kafka client library for Erlang/Elixir brod](https://github.com/kafka4beam/brod). See usage details in the [README file for brod_gssapi](https://github.com/kafka4beam/brod_gssapi).
+### `sasl_auth`
+
+- [brod_gssapi](https://github.com/kafka4beam/brod_gssapi) A GSSAPI authentication backend for [the Apache Kafka client library for Erlang/Elixir brod](https://github.com/kafka4beam/brod). See usage details in the [README file for brod_gssapi](https://github.com/kafka4beam/brod_gssapi).
+- Opensource MQTT broker [EMQX](https://github.com/emqx/emqx)
+
+### `sasl_auth_scram`
+
+- Opensource MQTT broker [EMQX](https://github.com/emqx/emqx)
+- There is also a similar but independent client-side-only implementation for reference: [kpro_scram](https://github.com/kafka4beam/kafka_protocol/blob/master/src/kpro_scram.erl).
