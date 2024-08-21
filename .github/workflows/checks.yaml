@@ -1,0 +1,35 @@
+name: Run chcks
+on:
+  pull_request:
+    branches:
+      - master
+env:
+  OTP_VERSION: "26"
+  REBAR_VERSION: "3.23.0"
+
+jobs:
+  lint:
+    runs-on: ubuntu-22.04
+    name: Lint
+    steps:
+      - name: install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install libkrb5-dev libsasl2-dev libsasl2-modules-gssapi-mit
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: OTP
+        uses: erlef/setup-beam@v1
+        with:
+          version-type: strict
+          otp-version: ${{ env.OTP_VERSION }}
+          rebar3-version: ${{ env.REBAR_VERSION }}
+      - name: Dialyzer & Xref
+        run: rebar3 do compile,dialyzer,xref
+      - name: Format
+        run: |
+          rebar3 fmt -w
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "Please format code!"
+            exit 1
+          fi

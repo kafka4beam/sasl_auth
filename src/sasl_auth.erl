@@ -155,7 +155,6 @@ init() ->
         false ->
             %% We will return ok but log a warning message with logger
             logger:warning(ErrorMsg),
-            RetVal,
             ok
     end.
 
@@ -173,24 +172,29 @@ kinit(KeyTabPath, Principal) ->
 %% This is because the client claims to be `user/foo.bar@EXAMPLE.COM' but server
 %% may consider it different from `user/foo.bar' obtained from KDC.
 %% Call `client_new/4' instead!
--spec client_new(ServiceName :: service_name(), ServerFQDN:: host(), Principal :: principal()) ->
+-spec client_new(ServiceName :: service_name(), ServerFQDN :: host(), Principal :: principal()) ->
     {ok, state()} | {error, sasl_code()}.
 client_new(ServiceName, ServerFQDN, Principal) ->
     client_new(ServiceName, ServerFQDN, Principal, undefined).
 
 %% @doc Initialize a client authentication context.
 %% NOTE: When `User' is `undefined', client principal name is used as username.
--spec client_new(ServiceName :: service_name(), ServerFQDN :: host(),
-                 Principal :: principal(), User :: undefined | user()) ->
+-spec client_new(
+    ServiceName :: service_name(),
+    ServerFQDN :: host(),
+    Principal :: principal(),
+    User :: undefined | user()
+) ->
     {ok, state()} | {error, sasl_code()}.
 client_new(ServiceName, ServerFQDN, Principal, User) ->
     ServiceName0 = null_terminate(ServiceName),
     Host0 = null_terminate(ServerFQDN),
     Principal0 = null_terminate(Principal),
-    User0 = case User =:= undefined of
-                true -> binary:copy(Principal0);
-                _ -> null_terminate(User)
-            end,
+    User0 =
+        case User =:= undefined of
+            true -> binary:copy(Principal0);
+            _ -> null_terminate(User)
+        end,
     case sasl_client_new(ServiceName0, Host0, Principal0, User0) of
         {ok, _} = Ret ->
             Ret;

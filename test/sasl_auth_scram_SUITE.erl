@@ -33,14 +33,16 @@ init_per_suite(Config) ->
 end_per_suite(_Config) ->
     ok.
 
-all() -> [t_scram,
-          t_scram_neg,
-          t_interop_kpro_scram,
-          t_interop_python_client_password_mismatch,
-          t_interop_python_client_algo_mismatch,
-          t_interop_python_client,
-          t_interop_kpro_scram_neg
-         ].
+all() ->
+    [
+        t_scram,
+        t_scram_neg,
+        t_interop_kpro_scram,
+        t_interop_python_client_password_mismatch,
+        t_interop_python_client_algo_mismatch,
+        t_interop_python_client,
+        t_interop_kpro_scram_neg
+    ].
 
 t_scram(_) ->
     Username = <<"admin">>,
@@ -48,12 +50,16 @@ t_scram(_) ->
     IterationCount = 4096,
     Algorithm = sha256,
 
-    {StoredKey, ServerKey, Salt} = generate_authentication_info(Password, #{algorithm => Algorithm, iteration_count => IterationCount}),
+    {StoredKey, ServerKey, Salt} = generate_authentication_info(Password, #{
+        algorithm => Algorithm, iteration_count => IterationCount
+    }),
     RetrieveFun = fun(_) ->
-                      {ok, #{stored_key => StoredKey,
-                             server_key => ServerKey,
-                             salt => Salt}}
-                  end,
+        {ok, #{
+            stored_key => StoredKey,
+            server_key => ServerKey,
+            salt => Salt
+        }}
+    end,
 
     ClientFirstMessage = sasl_auth_scram:client_first_message(Username),
 
@@ -62,17 +68,21 @@ t_scram(_) ->
     {continue, ServerFirstMessage, ServerCache} =
         check_client_first_message(
             ClientFirstMessage,
-            #{iteration_count => IterationCount,
-              retrieve => RetrieveFun}
+            #{
+                iteration_count => IterationCount,
+                retrieve => RetrieveFun
+            }
         ),
 
     ct:pal("ServerFirst: ~p~nStates:~p", [ServerFirstMessage, ServerCache]),
     {continue, ClientFinalMessage, ClientCache} =
         check_server_first_message(
             ServerFirstMessage,
-            #{client_first_message => ClientFirstMessage,
-              password => Password,
-              algorithm => Algorithm}
+            #{
+                client_first_message => ClientFirstMessage,
+                password => Password,
+                algorithm => Algorithm
+            }
         ),
 
     ct:pal("ClientFinal: ~p~n:State~p", [ClientFinalMessage, ClientCache]),
@@ -94,12 +104,16 @@ t_scram_neg(_) ->
     IterationCount = 4096,
     Algorithm = sha256,
 
-    {StoredKey, ServerKey, Salt} = generate_authentication_info(Password, #{algorithm => Algorithm, iteration_count => IterationCount}),
+    {StoredKey, ServerKey, Salt} = generate_authentication_info(Password, #{
+        algorithm => Algorithm, iteration_count => IterationCount
+    }),
     RetrieveFun = fun(_) ->
-                      {ok, #{stored_key => StoredKey,
-                             server_key => ServerKey,
-                             salt => Salt}}
-                  end,
+        {ok, #{
+            stored_key => StoredKey,
+            server_key => ServerKey,
+            salt => Salt
+        }}
+    end,
 
     ClientFirstMessage = client_first_message(Username),
 
@@ -108,25 +122,31 @@ t_scram_neg(_) ->
     {continue, ServerFirstMessage, ServerCache} =
         check_client_first_message(
             ClientFirstMessage,
-            #{iteration_count => IterationCount,
-              retrieve => RetrieveFun}
+            #{
+                iteration_count => IterationCount,
+                retrieve => RetrieveFun
+            }
         ),
 
     ct:pal("ServerFirst: ~p~nStates:~p", [ServerFirstMessage, ServerCache]),
     {continue, ClientFinalMessage, ClientCache} =
         check_server_first_message(
             ServerFirstMessage,
-            #{client_first_message => ClientFirstMessage,
-              password => Password2,
-              algorithm => Algorithm}
+            #{
+                client_first_message => ClientFirstMessage,
+                password => Password2,
+                algorithm => Algorithm
+            }
         ),
 
     ct:pal("ClientFinal: ~p~n:State~p", [ClientFinalMessage, ClientCache]),
     %% THEN: validation failed
-    ?assertEqual({error, 'other-error'},
+    ?assertEqual(
+        {error, 'other-error'},
         check_client_final_message(
             ClientFinalMessage, ServerCache#{algorithm => Algorithm}
-        )).
+        )
+    ).
 
 %% @doc interop test with python
 t_interop_python_client(Config) ->
@@ -139,36 +159,44 @@ t_interop_python_client(Config) ->
     PyScript = ?config(bin_dir, Config) ++ "/client.py",
     PortOpenArgs = [PyScript, Username, Password, "SCRAM-SHA-256"],
 
-    {StoredKey, ServerKey, Salt}
-        = generate_authentication_info(Password, #{algorithm => Algorithm,
-                                                   iteration_count => IterationCount}),
+    {StoredKey, ServerKey, Salt} =
+        generate_authentication_info(Password, #{
+            algorithm => Algorithm,
+            iteration_count => IterationCount
+        }),
 
     RetrieveFun = fun(_) ->
-                      {ok, #{stored_key => StoredKey,
-                             server_key => ServerKey,
-                             salt => Salt}}
-                  end,
+        {ok, #{
+            stored_key => StoredKey,
+            server_key => ServerKey,
+            salt => Salt
+        }}
+    end,
 
-    Port = open_port({spawn_executable, PortProgram}, [{line, 1024},
-                                                       {args, PortOpenArgs},
-                                                       use_stdio,
-                                                       binary
-                                                      ]),
+    Port = open_port({spawn_executable, PortProgram}, [
+        {line, 1024},
+        {args, PortOpenArgs},
+        use_stdio,
+        binary
+    ]),
 
     ClientFirstMessage = recv_from_port(Port),
 
     {continue, ServerFirstMessage, ServerCache} =
         check_client_first_message(
-          ClientFirstMessage,
-          #{iteration_count => IterationCount,
-            retrieve => RetrieveFun}),
+            ClientFirstMessage,
+            #{
+                iteration_count => IterationCount,
+                retrieve => RetrieveFun
+            }
+        ),
 
     send_to_port(Port, ServerFirstMessage),
     ClientFinalMessage = recv_from_port(Port),
     {ok, ServerFinalMessage} =
         check_client_final_message(
-          ClientFinalMessage, ServerCache#{algorithm => Algorithm}
-         ),
+            ClientFinalMessage, ServerCache#{algorithm => Algorithm}
+        ),
     send_to_port(Port, ServerFinalMessage),
     ?assertEqual(<<"AUTH OK">>, recv_from_port(Port)),
     erlang:port_close(Port).
@@ -185,38 +213,48 @@ t_interop_python_client_password_mismatch(Config) ->
     ClientPassword = <<"234567">>,
     PortOpenArgs = [PyScript, Username, ClientPassword, "SCRAM-SHA-512"],
 
-    {StoredKey, ServerKey, Salt}
-        = generate_authentication_info(Password, #{algorithm => Algorithm,
-                                                   iteration_count => IterationCount}),
+    {StoredKey, ServerKey, Salt} =
+        generate_authentication_info(Password, #{
+            algorithm => Algorithm,
+            iteration_count => IterationCount
+        }),
 
     RetrieveFun = fun(_) ->
-                      {ok, #{stored_key => StoredKey,
-                             server_key => ServerKey,
-                             salt => Salt}}
-                  end,
+        {ok, #{
+            stored_key => StoredKey,
+            server_key => ServerKey,
+            salt => Salt
+        }}
+    end,
 
-    Port = open_port({spawn_executable, PortProgram}, [{line, 1024},
-                                                       {args, PortOpenArgs},
-                                                       use_stdio,
-                                                       binary
-                                                      ]),
+    Port = open_port({spawn_executable, PortProgram}, [
+        {line, 1024},
+        {args, PortOpenArgs},
+        use_stdio,
+        binary
+    ]),
 
     ClientFirstMessage = recv_from_port(Port),
 
     {continue, ServerFirstMessage, ServerCache} =
         check_client_first_message(
-          ClientFirstMessage,
-          #{iteration_count => IterationCount,
-            retrieve => RetrieveFun}),
+            ClientFirstMessage,
+            #{
+                iteration_count => IterationCount,
+                retrieve => RetrieveFun
+            }
+        ),
 
     send_to_port(Port, ServerFirstMessage),
     ClientFinalMessage = recv_from_port(Port),
 
     %% THEN: validation failed
-    ?assertEqual({error, 'other-error'},
+    ?assertEqual(
+        {error, 'other-error'},
         check_client_final_message(
-          ClientFinalMessage, ServerCache#{algorithm => Algorithm}
-         )),
+            ClientFinalMessage, ServerCache#{algorithm => Algorithm}
+        )
+    ),
     send_to_port(Port, <<"stop">>),
     erlang:port_close(Port).
 
@@ -231,38 +269,48 @@ t_interop_python_client_algo_mismatch(Config) ->
     ClientPassword = <<"234567">>,
     PortOpenArgs = [PyScript, Username, ClientPassword, "SCRAM-SHA-512"],
 
-    {StoredKey, ServerKey, Salt}
-        = generate_authentication_info(Password, #{algorithm => Algorithm,
-                                                   iteration_count => IterationCount}),
+    {StoredKey, ServerKey, Salt} =
+        generate_authentication_info(Password, #{
+            algorithm => Algorithm,
+            iteration_count => IterationCount
+        }),
 
     RetrieveFun = fun(_) ->
-                      {ok, #{stored_key => StoredKey,
-                             server_key => ServerKey,
-                             salt => Salt}}
-                  end,
+        {ok, #{
+            stored_key => StoredKey,
+            server_key => ServerKey,
+            salt => Salt
+        }}
+    end,
 
-    Port = open_port({spawn_executable, PortProgram}, [{line, 1024},
-                                                       {args, PortOpenArgs},
-                                                       use_stdio,
-                                                       binary
-                                                      ]),
+    Port = open_port({spawn_executable, PortProgram}, [
+        {line, 1024},
+        {args, PortOpenArgs},
+        use_stdio,
+        binary
+    ]),
 
     ClientFirstMessage = recv_from_port(Port),
 
     {continue, ServerFirstMessage, ServerCache} =
         check_client_first_message(
-          ClientFirstMessage,
-          #{iteration_count => IterationCount,
-            retrieve => RetrieveFun}),
+            ClientFirstMessage,
+            #{
+                iteration_count => IterationCount,
+                retrieve => RetrieveFun
+            }
+        ),
 
     send_to_port(Port, ServerFirstMessage),
     ClientFinalMessage = recv_from_port(Port),
 
     %% THEN: validation failed
-    ?assertEqual({error, 'bad-client-proof'},
+    ?assertEqual(
+        {error, 'bad-client-proof'},
         check_client_final_message(
-          ClientFinalMessage, ServerCache#{algorithm => Algorithm}
-         )),
+            ClientFinalMessage, ServerCache#{algorithm => Algorithm}
+        )
+    ),
     send_to_port(Port, <<"stop">>),
     erlang:port_close(Port).
 
@@ -273,30 +321,37 @@ t_interop_kpro_scram(_) ->
     Password = <<"kprokafka">>,
     Algorithm = sha256,
     IterationCount = 4096,
-    {StoredKey, ServerKey, Salt} = generate_authentication_info(Password, #{algorithm => Algorithm, iteration_count => IterationCount}),
+    {StoredKey, ServerKey, Salt} = generate_authentication_info(Password, #{
+        algorithm => Algorithm, iteration_count => IterationCount
+    }),
 
     RetrieveFun = fun(_) ->
-                      {ok, #{stored_key => StoredKey,
-                             server_key => ServerKey,
-                             salt => Salt}}
-                  end,
+        {ok, #{
+            stored_key => StoredKey,
+            server_key => ServerKey,
+            salt => Salt
+        }}
+    end,
 
     Ctx = kpro_scram:init(sha256, Username, Password),
     ClientFirstMessage = kpro_scram:first(Ctx),
 
     {continue, ServerFirstMessage, ServerCache} =
         check_client_first_message(
-          ClientFirstMessage,
-          #{iteration_count => IterationCount,
-            retrieve => RetrieveFun}),
+            ClientFirstMessage,
+            #{
+                iteration_count => IterationCount,
+                retrieve => RetrieveFun
+            }
+        ),
 
     Ctx1 = kpro_scram:parse(Ctx, ServerFirstMessage),
 
     ClientFinalMessage = kpro_scram:final(Ctx1),
     {ok, ServerFinalMessage} =
         check_client_final_message(
-          ClientFinalMessage, ServerCache#{algorithm => Algorithm}
-         ),
+            ClientFinalMessage, ServerCache#{algorithm => Algorithm}
+        ),
     ?assertEqual(ok, kpro_scram:validate(Ctx1, ServerFinalMessage)).
 
 %% @doc interop test with kpro_scram, negtive
@@ -308,32 +363,41 @@ t_interop_kpro_scram_neg(_) ->
     KproPassword = <<"prokafkak">>,
     Algorithm = sha256,
     IterationCount = 4096,
-    {StoredKey, ServerKey, Salt} = generate_authentication_info(Password, #{algorithm => Algorithm, iteration_count => IterationCount}),
+    {StoredKey, ServerKey, Salt} = generate_authentication_info(Password, #{
+        algorithm => Algorithm, iteration_count => IterationCount
+    }),
 
     RetrieveFun = fun(_) ->
-                      {ok, #{stored_key => StoredKey,
-                             server_key => ServerKey,
-                             salt => Salt}}
-                  end,
+        {ok, #{
+            stored_key => StoredKey,
+            server_key => ServerKey,
+            salt => Salt
+        }}
+    end,
 
     Ctx = kpro_scram:init(sha256, Username, KproPassword),
     ClientFirstMessage = kpro_scram:first(Ctx),
 
     {continue, ServerFirstMessage, ServerCache} =
         check_client_first_message(
-          ClientFirstMessage,
-          #{iteration_count => IterationCount,
-            retrieve => RetrieveFun}),
+            ClientFirstMessage,
+            #{
+                iteration_count => IterationCount,
+                retrieve => RetrieveFun
+            }
+        ),
 
     Ctx1 = kpro_scram:parse(Ctx, ServerFirstMessage),
 
     ClientFinalMessage = kpro_scram:final(Ctx1),
 
     %% THEN: validation failed
-    ?assertEqual({error, 'other-error'},
+    ?assertEqual(
+        {error, 'other-error'},
         check_client_final_message(
-          ClientFinalMessage, ServerCache#{algorithm => Algorithm}
-         )).
+            ClientFinalMessage, ServerCache#{algorithm => Algorithm}
+        )
+    ).
 
 %% helpers
 recv_from_port(Port) ->
@@ -344,17 +408,18 @@ recv_from_port(Port) ->
         {Port, Unsupp} ->
             ct:fail("recv from Port but unsupported data: ~p", [Unsupp])
     after 10000 ->
-            ct:fail("failed to recv from Port")
+        ct:fail("failed to recv from Port")
     end.
 
 send_to_port(Port, RawData) when is_binary(RawData) ->
     ct:pal("sent to Port: ~p", [RawData]),
     Port ! {self(), {command, <<RawData/binary, "\n">>}}.
 
-
 load_kpro_scram() ->
-    {ok, {{"HTTP/1.1", 200, "OK"}, _Hdrs ,Body}}
-        = httpc:request("https://raw.githubusercontent.com/kafka4beam/kafka_protocol/master/src/kpro_scram.erl"),
+    {ok, {{"HTTP/1.1", 200, "OK"}, _Hdrs, Body}} =
+        httpc:request(
+            "https://raw.githubusercontent.com/kafka4beam/kafka_protocol/master/src/kpro_scram.erl"
+        ),
     file:write_file("/tmp/kpro_scram.erl", Body),
     {ok, kpro_scram} = c:nc("/tmp/kpro_scram.erl").
 

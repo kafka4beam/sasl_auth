@@ -19,11 +19,12 @@
 
 -export([client_first_message/1]).
 
--export([ check_client_first_message/2
-        , check_client_final_message/2
-        , check_server_first_message/2
-        , check_server_final_message/2
-        ]).
+-export([
+    check_client_first_message/2,
+    check_client_final_message/2,
+    check_server_first_message/2,
+    check_server_final_message/2
+]).
 
 -ifdef(TEST).
 -compile(export_all).
@@ -34,8 +35,10 @@
 %% APIs
 %%------------------------------------------------------------------------------
 
-generate_authentication_info(Password, #{algorithm := Algorithm,
-                                         iteration_count := IterationCount}) ->
+generate_authentication_info(Password, #{
+    algorithm := Algorithm,
+    iteration_count := IterationCount
+}) ->
     Salt = gen_salt(),
     SaltedPassword = salted_password(Algorithm, Password, Salt, IterationCount),
     ClientKey = client_key(Algorithm, SaltedPassword),
@@ -57,12 +60,16 @@ client_first_message(Username) ->
 %% ServerKey       := HMAC(SaltedPassword, "Server Key")
 %% ServerSignature := HMAC(ServerKey, AuthMessage)
 
-check_client_first_message(ClientFirstMessage, #{iteration_count := IterationCount,
-                                                 retrieve := RetrieveFun}) ->
+check_client_first_message(ClientFirstMessage, #{
+    iteration_count := IterationCount,
+    retrieve := RetrieveFun
+}) ->
     case parse_client_first_message(ClientFirstMessage) of
-        {ok, #{username := Username,
-               nonce := ClientNonce,
-               gs2_cbind_flag := GS2CBindFlag}} ->
+        {ok, #{
+            username := Username,
+            nonce := ClientNonce,
+            gs2_cbind_flag := GS2CBindFlag
+        }} ->
             case RetrieveFun(Username) of
                 {error, _} ->
                     ignore;
@@ -71,38 +78,55 @@ check_client_first_message(ClientFirstMessage, #{iteration_count := IterationCou
                     ServerNonce = nonce(),
                     Nonce = iolist_to_binary([ClientNonce, ServerNonce]),
                     ServerFirstMessage = server_first_message(Nonce, Salt, IterationCount),
-                    {continue, ServerFirstMessage, maps:merge(#{next_step                 => client_final,
-                                                                client_first_message_bare => ClientFirstMessageBare,
-                                                                server_first_message      => ServerFirstMessage,
-                                                                nonce                     => Nonce,
-                                                                gs2_cbind_flag            => GS2CBindFlag}, Retrieved)}
+                    {continue, ServerFirstMessage,
+                        maps:merge(
+                            #{
+                                next_step => client_final,
+                                client_first_message_bare => ClientFirstMessageBare,
+                                server_first_message => ServerFirstMessage,
+                                nonce => Nonce,
+                                gs2_cbind_flag => GS2CBindFlag
+                            },
+                            Retrieved
+                        )}
             end;
         {error, Reason} ->
             {error, Reason}
     end.
 
-check_client_final_message(ClientFinalmessage, #{client_first_message_bare := ClientFirstMessageBare,
-                                                 server_first_message      := ServerFirstMessage,
-                                                 stored_key                := StoredKey,
-                                                 server_key                := ServerKey,
-                                                 nonce                     := CachedNonce,
-                                                 gs2_cbind_flag            := GS2CBindFlag,
-                                                 algorithm                 := Algorithm}) ->
+check_client_final_message(ClientFinalmessage, #{
+    client_first_message_bare := ClientFirstMessageBare,
+    server_first_message := ServerFirstMessage,
+    stored_key := StoredKey,
+    server_key := ServerKey,
+    nonce := CachedNonce,
+    gs2_cbind_flag := GS2CBindFlag,
+    algorithm := Algorithm
+}) ->
     case parse_client_final_message(ClientFinalmessage) of
-        {ok, #{nonce := Nonce,
-               proof := ClientProof,
-               gs2_cbind_flag := GS2CBindFlag}} ->
-            ClientFinalMessageWithoutProof = peek_client_final_message_without_proof(ClientFinalmessage),
-            AuthMessage = iolist_to_binary([ ClientFirstMessageBare
-                                           , ","
-                                           , ServerFirstMessage
-                                           , ","
-                                           , ClientFinalMessageWithoutProof]),
+        {ok, #{
+            nonce := Nonce,
+            proof := ClientProof,
+            gs2_cbind_flag := GS2CBindFlag
+        }} ->
+            ClientFinalMessageWithoutProof = peek_client_final_message_without_proof(
+                ClientFinalmessage
+            ),
+            AuthMessage = iolist_to_binary([
+                ClientFirstMessageBare,
+                ",",
+                ServerFirstMessage,
+                ",",
+                ClientFinalMessageWithoutProof
+            ]),
             ClientSignature = hmac(Algorithm, StoredKey, AuthMessage),
             case iolist_size(ClientProof) =:= iolist_size(ClientSignature) of
                 true ->
                     ClientKey = crypto:exor(ClientProof, ClientSignature),
-                    case Nonce =:= CachedNonce andalso crypto:hash(Algorithm, ClientKey) =:= StoredKey of
+                    case
+                        Nonce =:= CachedNonce andalso
+                            crypto:hash(Algorithm, ClientKey) =:= StoredKey
+                    of
                         true ->
                             ServerSignature = hmac(Algorithm, ServerKey, AuthMessage),
                             ServerFinalMessage = server_final_message(verifier, ServerSignature),
@@ -120,50 +144,65 @@ check_client_final_message(ClientFinalmessage, #{client_first_message_bare := Cl
             {error, Reason}
     end.
 
-check_server_first_message(ServerFirstMessage, #{client_first_message := ClientFirstMessage,
-                                                 password             := Password,
-                                                 algorithm            := Algorithm}) ->
+check_server_first_message(ServerFirstMessage, #{
+    client_first_message := ClientFirstMessage,
+    password := Password,
+    algorithm := Algorithm
+}) ->
     case parse_server_first_message(ServerFirstMessage) of
-        {ok, #{nonce := Nonce,
-               salt := Salt,
-               iteration_count := IterationCount}} ->
+        {ok, #{
+            nonce := Nonce,
+            salt := Salt,
+            iteration_count := IterationCount
+        }} ->
             ClientFirstMessageBare = peek_client_first_message_bare(ClientFirstMessage),
             ClientFinalMessageWithoutProof = client_final_message_without_proof(Nonce),
-            AuthMessage = iolist_to_binary([ ClientFirstMessageBare
-                                           , ","
-                                           , ServerFirstMessage
-                                           , ","
-                                           , ClientFinalMessageWithoutProof]),
+            AuthMessage = iolist_to_binary([
+                ClientFirstMessageBare,
+                ",",
+                ServerFirstMessage,
+                ",",
+                ClientFinalMessageWithoutProof
+            ]),
             SaltedPassword = salted_password(Algorithm, Password, Salt, IterationCount),
             ClientKey = client_key(Algorithm, SaltedPassword),
             StoredKey = stored_key(Algorithm, ClientKey),
             ClientSignature = hmac(Algorithm, StoredKey, AuthMessage),
             ClientProof = crypto:exor(ClientKey, ClientSignature),
-            {continue, client_final_message(Nonce, ClientProof),
-                #{next_step                   => server_final,
-                  password                    => Password,
-                  client_first_message_bare   => ClientFirstMessageBare,
-                  server_first_message        => ServerFirstMessage}};
+            {continue, client_final_message(Nonce, ClientProof), #{
+                next_step => server_final,
+                password => Password,
+                client_first_message_bare => ClientFirstMessageBare,
+                server_first_message => ServerFirstMessage
+            }};
         {error, Reason} ->
             {error, Reason}
     end.
 
-check_server_final_message(ServerFinalMessage,
-                           #{password                    := Password,
-                             client_first_message_bare   := ClientFirstMessageBare,
-                             server_first_message        := ServerFirstMessage,
-                             algorithm                   := Algorithm}) ->
+check_server_final_message(
+    ServerFinalMessage,
+    #{
+        password := Password,
+        client_first_message_bare := ClientFirstMessageBare,
+        server_first_message := ServerFirstMessage,
+        algorithm := Algorithm
+    }
+) ->
     case parse_server_final_message(ServerFinalMessage) of
         {ok, #{verifier := Verifier}} ->
-            {ok, #{nonce := Nonce,
-                   salt := Salt,
-                   iteration_count := IterationCount}} = parse_server_first_message(ServerFirstMessage),
+            {ok, #{
+                nonce := Nonce,
+                salt := Salt,
+                iteration_count := IterationCount
+            }} = parse_server_first_message(ServerFirstMessage),
             ClientFinalMessageWithoutProof = client_final_message_without_proof(Nonce),
-            AuthMessage = iolist_to_binary([ ClientFirstMessageBare
-                                           , ","
-                                           , ServerFirstMessage
-                                           , ","
-                                           , ClientFinalMessageWithoutProof]),
+            AuthMessage = iolist_to_binary([
+                ClientFirstMessageBare,
+                ",",
+                ServerFirstMessage,
+                ",",
+                ClientFinalMessageWithoutProof
+            ]),
             SaltedPassword = salted_password(Algorithm, Password, Salt, IterationCount),
             ServerKey = server_key(Algorithm, SaltedPassword),
             case Verifier =:= hmac(Algorithm, ServerKey, AuthMessage) of
@@ -185,38 +224,46 @@ check_server_final_message(ServerFinalMessage,
 %% client-first-message
 %% = gs2-cbind-flag "," [authzid] "," [reserved-mext ","] userame "," nonce ["," extensions]
 parse_client_first_message(Bin) ->
-    Structure = [ gs2_cbind_flag
-                , authzid
-                , reserved_mext
-                , username
-                , nonce
-                , extensions],
+    Structure = [
+        gs2_cbind_flag,
+        authzid,
+        reserved_mext,
+        username,
+        nonce,
+        extensions
+    ],
     parse_attributes(Bin, Structure).
 
 %% client-final-message
 %% = channel-binding "," nonce ["," extensions] "," proof
 parse_client_final_message(Bin) ->
-    Structure = [ channel_binding
-                , nonce
-                , extensions
-                , proof],
+    Structure = [
+        channel_binding,
+        nonce,
+        extensions,
+        proof
+    ],
     parse_attributes(Bin, Structure).
 
 %% server-first-message
 %% = [reserved-mext ","] nonce "," salt "," iteration-count ["," extensions]
 parse_server_first_message(Bin) ->
-    Structure = [ reserved_mext
-                , nonce
-                , salt
-                , iteration_count
-                , extensions],
+    Structure = [
+        reserved_mext,
+        nonce,
+        salt,
+        iteration_count,
+        extensions
+    ],
     parse_attributes(Bin, Structure).
 
 %% server-final-message
 %% = (server-error / verifier) ["," extensions]
 parse_server_final_message(Bin) ->
-    Structure = [ server_error_or_verifier
-                , extensions],
+    Structure = [
+        server_error_or_verifier,
+        extensions
+    ],
     parse_attributes(Bin, Structure).
 
 peek_client_first_message_bare(Bin) ->
@@ -291,30 +338,29 @@ parse_gs2_cbind_flag(_, _) ->
 
 parse_authzid(<<>>, Attributes) ->
     {ok, Attributes};
-parse_authzid(<<"a=", AuthzID0/binary>>, Attributes)
-  when AuthzID0 =/= <<>> ->
+parse_authzid(<<"a=", AuthzID0/binary>>, Attributes) when
+    AuthzID0 =/= <<>>
+->
     case replace_escape_sequence(AuthzID0) of
         {ok, AuthzID} ->
-            {ok, Attributes#{authzid => AuthzID}};
-        {error, Reason} ->
-            {error, Reason}
+            {ok, Attributes#{authzid => AuthzID}}
     end;
 parse_authzid(_, _) ->
     {error, 'other-error'}.
 
-parse_username(<<"n=", Username0/binary>>, Attributes)
-  when Username0 =/= <<>> ->
+parse_username(<<"n=", Username0/binary>>, Attributes) when
+    Username0 =/= <<>>
+->
     case replace_escape_sequence(Username0) of
         {ok, Username} ->
-            {ok, Attributes#{username => Username}};
-        {error, Reason} ->
-            {error, Reason}
+            {ok, Attributes#{username => Username}}
     end;
 parse_username(_, _) ->
     {error, 'other-error'}.
 
-parse_nonce(<<"r=", Nonce/binary>>, Attributes)
-  when Nonce =/= <<>> ->
+parse_nonce(<<"r=", Nonce/binary>>, Attributes) when
+    Nonce =/= <<>>
+->
     {ok, Attributes#{nonce => Nonce}};
 parse_nonce(_, _) ->
     {error, 'other-error'}.
@@ -322,7 +368,7 @@ parse_nonce(_, _) ->
 %% channel-binding: base64 encoding of cbind-input
 %% cbind-input: gs2-header [cbind-data]
 %%
-%% TODO: The server MUST always validate the client's "c=" field. 
+%% TODO: The server MUST always validate the client's "c=" field.
 %% The server does this by constructing the value of the "c=" attribute
 %% and then checking that it matches the client's c= attribute value.
 parse_channel_binding(<<"c=", ChannelBinding0/binary>>, Attributes) ->
@@ -348,8 +394,9 @@ parse_cbind_data(<<>>, Attributes) ->
 parse_cbind_data(Bin, Attributes) ->
     {ok, Attributes#{cbind_data => Bin}}.
 
-parse_salt(<<"s=", Salt0/binary>>, Attributes)
-  when Salt0 =/= <<>> ->
+parse_salt(<<"s=", Salt0/binary>>, Attributes) when
+    Salt0 =/= <<>>
+->
     try base64:decode(Salt0) of
         Salt ->
             {ok, Attributes#{salt => Salt}}
@@ -373,8 +420,9 @@ parse_iteration_count(<<"i=", IterationCount0/binary>>, Attributes) ->
 parse_iteration_count(_, _) ->
     {error, 'other-error'}.
 
-parse_proof(<<"p=", Proof0/binary>>, Attributes)
-  when Proof0 =/= <<>> ->
+parse_proof(<<"p=", Proof0/binary>>, Attributes) when
+    Proof0 =/= <<>>
+->
     try base64:decode(Proof0) of
         Proof ->
             {ok, Attributes#{proof => Proof}}
@@ -385,8 +433,9 @@ parse_proof(<<"p=", Proof0/binary>>, Attributes)
 parse_proof(_, _) ->
     {error, 'other-error'}.
 
-parse_server_error_or_verifier(<<"v=", Verifier0/binary>>, Attributes)
-  when Verifier0 =/= <<>> ->
+parse_server_error_or_verifier(<<"v=", Verifier0/binary>>, Attributes) when
+    Verifier0 =/= <<>>
+->
     try base64:decode(Verifier0) of
         Verifier ->
             {ok, Attributes#{verifier => Verifier}}
@@ -394,8 +443,9 @@ parse_server_error_or_verifier(<<"v=", Verifier0/binary>>, Attributes)
         _Class:_Reason ->
             {error, 'invalid-encoding'}
     end;
-parse_server_error_or_verifier(<<"e=", Error/binary>>, Attributes)
-  when Error =/= <<>> ->
+parse_server_error_or_verifier(<<"e=", Error/binary>>, Attributes) when
+    Error =/= <<>>
+->
     {ok, Attributes#{error => Error}};
 parse_server_error_or_verifier(_, _) ->
     {error, 'other-error'}.
@@ -412,12 +462,8 @@ skip_extensions([Chunk | More], Parser) ->
 
 replace_escape_sequence(SaslName) ->
     Chunks = binary:split(SaslName, <<"=">>, [global]),
-    case replace_escape_sequence(Chunks, []) of
-        {error, Reason} ->
-            {error, Reason};
-        NChunks ->
-            {ok, iolist_to_binary(NChunks)}
-    end.
+    NChunks = replace_escape_sequence(Chunks, []),
+    {ok, iolist_to_binary(NChunks)}.
 
 replace_escape_sequence([], Acc) ->
     lists:reverse(Acc);
@@ -439,12 +485,12 @@ client_final_message(Nonce, Proof) ->
     iolist_to_binary([client_final_message_without_proof(Nonce), ",p=", base64:encode(Proof)]).
 
 server_first_message(Nonce, Salt, IterationCount) ->
-    iolist_to_binary(["r=", Nonce, ",s=", base64:encode(Salt), ",i=", integer_to_list(IterationCount)]).
+    iolist_to_binary([
+        "r=", Nonce, ",s=", base64:encode(Salt), ",i=", integer_to_list(IterationCount)
+    ]).
 
 server_final_message(verifier, ServerSignature) ->
-    iolist_to_binary(["v=", base64:encode(ServerSignature)]);
-server_final_message(error, Error) ->
-    iolist_to_binary(["e=", Error]).
+    iolist_to_binary(["v=", base64:encode(ServerSignature)]).
 
 gen_salt() ->
     <<X:128/big-unsigned-integer>> = crypto:strong_rand_bytes(16),
@@ -452,7 +498,7 @@ gen_salt() ->
 
 %% 0x21-2B, 0x2D-7E
 nonce() ->
-    list_to_binary([rand_uniform(33, 127) || _ <- lists:seq(1,15)]).
+    list_to_binary([rand_uniform(33, 127) || _ <- lists:seq(1, 15)]).
 
 salted_password(Alg, Password, Salt, IterationCount) ->
     pbkdf2(Alg, Password, Salt, IterationCount).
@@ -473,6 +519,7 @@ gs2_header() ->
 %% n: client doesn't support channel binding
 %% y: client does support channel binding but thinks the server does not
 %% p: client requires channel binding
+-dialyzer({nowarn_function, gs2_cbind_flag/1}).
 gs2_cbind_flag({"p", ChannelBindingName}) ->
     lists:concat(["p=", ChannelBindingName]);
 gs2_cbind_flag("n") ->
