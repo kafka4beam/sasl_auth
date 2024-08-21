@@ -33,9 +33,14 @@ init_per_suite(Config) ->
     %% Unable to kinit with service keytab here, only one keytab can be kinit at a time.
 
     [
-        UserKeyTab, UserPrincipal, ServerHost, UserRealm,
-        ServiceKeyTab, ServiceName,
-        Service | Config
+        UserKeyTab,
+        UserPrincipal,
+        ServerHost,
+        UserRealm,
+        ServiceKeyTab,
+        ServiceName,
+        Service
+        | Config
     ].
 
 end_per_suite(_Config) ->
