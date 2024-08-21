@@ -25,21 +25,20 @@
 -define(APP, sasl_auth).
 
 init_per_suite(Config) ->
-    {ok, _} = application:ensure_all_started(?APP),
+    _ = application:load(?APP),
     %% Port program dir
-    BinDir = filename:join([code:lib_dir(?APP),
-                            "test/bin/",
-                            hd(string:tokens(erlang:system_info(system_architecture), "-"))]),
+    BinDir = filename:join([code:lib_dir(?APP), "test/bin/"]),
     [{bin_dir, BinDir} | Config].
 
 end_per_suite(_Config) ->
-    application:stop(?APP).
+    ok.
 
 all() -> [t_scram,
           t_scram_neg,
           t_interop_kpro_scram,
-          t_interop_rustbase_scram_neg,
-          t_interop_rustbase_scram,
+          t_interop_python_client_password_mismatch,
+          t_interop_python_client_algo_mismatch,
+          t_interop_python_client,
           t_interop_kpro_scram_neg
          ].
 
@@ -49,7 +48,7 @@ t_scram(_) ->
     IterationCount = 4096,
     Algorithm = sha256,
 
-    {StoredKey, ServerKey, Salt} = sasl_auth_scram:generate_authentication_info(Password, #{algorithm => Algorithm, iteration_count => IterationCount}),
+    {StoredKey, ServerKey, Salt} = generate_authentication_info(Password, #{algorithm => Algorithm, iteration_count => IterationCount}),
     RetrieveFun = fun(_) ->
                       {ok, #{stored_key => StoredKey,
                              server_key => ServerKey,
@@ -129,19 +128,20 @@ t_scram_neg(_) ->
             ClientFinalMessage, ServerCache#{algorithm => Algorithm}
         )).
 
-%% @doc interop test with rustbase-scram
-t_interop_rustbase_scram(Config) ->
+%% @doc interop test with python
+t_interop_python_client(Config) ->
     process_flag(trap_exit, true),
-    PortProgram = ?config(bin_dir, Config) ++ "/scram_cli",
     Username = <<"user">>,
     Password = <<"123456">>,
     Algorithm = sha256,
     IterationCount = 4096,
-    PortOpenArgs = [Username, Password, atom_to_binary(Algorithm)],
+    PortProgram = string:trim(os:cmd("which python3")),
+    PyScript = ?config(bin_dir, Config) ++ "/client.py",
+    PortOpenArgs = [PyScript, Username, Password, "SCRAM-SHA-256"],
 
     {StoredKey, ServerKey, Salt}
         = generate_authentication_info(Password, #{algorithm => Algorithm,
-                                                               iteration_count => IterationCount}),
+                                                   iteration_count => IterationCount}),
 
     RetrieveFun = fun(_) ->
                       {ok, #{stored_key => StoredKey,
@@ -170,24 +170,23 @@ t_interop_rustbase_scram(Config) ->
           ClientFinalMessage, ServerCache#{algorithm => Algorithm}
          ),
     send_to_port(Port, ServerFinalMessage),
-    ?assertEqual(<<"AUTH OK">>, recv_from_port(Port)).
+    ?assertEqual(<<"AUTH OK">>, recv_from_port(Port)),
+    erlang:port_close(Port).
 
-
-%% @doc interop test with rustbase-scram, negtive
-t_interop_rustbase_scram_neg(Config) ->
+%% @doc interop negtive-test with python script
+t_interop_python_client_password_mismatch(Config) ->
     process_flag(trap_exit, true),
-    PortProgram = ?config(bin_dir, Config) ++ "/scram_cli",
     Username = <<"user">>,
-    %% WHEN:  Client & Server using different password
     Password = <<"123456">>,
-    PortPassword = <<"234567">>,
-    Algorithm = sha256,
+    Algorithm = sha512,
     IterationCount = 4096,
-    PortOpenArgs = [Username, PortPassword, atom_to_binary(Algorithm)],
+    PortProgram = string:trim(os:cmd("which python3")),
+    PyScript = ?config(bin_dir, Config) ++ "/client.py",
+    ClientPassword = <<"234567">>,
+    PortOpenArgs = [PyScript, Username, ClientPassword, "SCRAM-SHA-512"],
 
-    {StoredKey, ServerKey, Salt} =
-        generate_authentication_info(Password,
-                                                 #{algorithm => Algorithm,
+    {StoredKey, ServerKey, Salt}
+        = generate_authentication_info(Password, #{algorithm => Algorithm,
                                                    iteration_count => IterationCount}),
 
     RetrieveFun = fun(_) ->
@@ -218,6 +217,53 @@ t_interop_rustbase_scram_neg(Config) ->
         check_client_final_message(
           ClientFinalMessage, ServerCache#{algorithm => Algorithm}
          )),
+    send_to_port(Port, <<"stop">>),
+    erlang:port_close(Port).
+
+t_interop_python_client_algo_mismatch(Config) ->
+    process_flag(trap_exit, true),
+    Username = <<"user">>,
+    Password = <<"123456">>,
+    Algorithm = sha256,
+    IterationCount = 4096,
+    PortProgram = string:trim(os:cmd("which python3")),
+    PyScript = ?config(bin_dir, Config) ++ "/client.py",
+    ClientPassword = <<"234567">>,
+    PortOpenArgs = [PyScript, Username, ClientPassword, "SCRAM-SHA-512"],
+
+    {StoredKey, ServerKey, Salt}
+        = generate_authentication_info(Password, #{algorithm => Algorithm,
+                                                   iteration_count => IterationCount}),
+
+    RetrieveFun = fun(_) ->
+                      {ok, #{stored_key => StoredKey,
+                             server_key => ServerKey,
+                             salt => Salt}}
+                  end,
+
+    Port = open_port({spawn_executable, PortProgram}, [{line, 1024},
+                                                       {args, PortOpenArgs},
+                                                       use_stdio,
+                                                       binary
+                                                      ]),
+
+    ClientFirstMessage = recv_from_port(Port),
+
+    {continue, ServerFirstMessage, ServerCache} =
+        check_client_first_message(
+          ClientFirstMessage,
+          #{iteration_count => IterationCount,
+            retrieve => RetrieveFun}),
+
+    send_to_port(Port, ServerFirstMessage),
+    ClientFinalMessage = recv_from_port(Port),
+
+    %% THEN: validation failed
+    ?assertEqual({error, 'bad-client-proof'},
+        check_client_final_message(
+          ClientFinalMessage, ServerCache#{algorithm => Algorithm}
+         )),
+    send_to_port(Port, <<"stop">>),
     erlang:port_close(Port).
 
 %% @doc interop test with kpro_scram

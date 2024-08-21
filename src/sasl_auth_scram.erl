@@ -99,14 +99,20 @@ check_client_final_message(ClientFinalmessage, #{client_first_message_bare := Cl
                                            , ","
                                            , ClientFinalMessageWithoutProof]),
             ClientSignature = hmac(Algorithm, StoredKey, AuthMessage),
-            ClientKey = crypto:exor(ClientProof, ClientSignature),
-            case Nonce =:= CachedNonce andalso crypto:hash(Algorithm, ClientKey) =:= StoredKey of
+            case iolist_size(ClientProof) =:= iolist_size(ClientSignature) of
                 true ->
-                    ServerSignature = hmac(Algorithm, ServerKey, AuthMessage),
-                    ServerFinalMessage = server_final_message(verifier, ServerSignature),
-                    {ok, ServerFinalMessage};
+                    ClientKey = crypto:exor(ClientProof, ClientSignature),
+                    case Nonce =:= CachedNonce andalso crypto:hash(Algorithm, ClientKey) =:= StoredKey of
+                        true ->
+                            ServerSignature = hmac(Algorithm, ServerKey, AuthMessage),
+                            ServerFinalMessage = server_final_message(verifier, ServerSignature),
+                            {ok, ServerFinalMessage};
+                        false ->
+                            {error, 'other-error'}
+                    end;
                 false ->
-                    {error, 'other-error'}
+                    %% using a different algorithm
+                    {error, 'bad-client-proof'}
             end;
         {ok, _} ->
             {error, 'channel-bindings-dont-match'};

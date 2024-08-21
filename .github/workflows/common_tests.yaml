@@ -39,5 +39,5 @@ jobs:
       run: |
         rm -rf /tmp/.buildx-cache
         mv /tmp/.buildx-cache-new /tmp/.buildx-cache
-    - name: Run tests 
+    - name: Run tests
       run: (cd ${GITHUB_WORKSPACE} && ./scripts/setup_and_run_rebar3_ct_in_docker/run_in_docker.sh)
