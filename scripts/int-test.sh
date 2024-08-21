@@ -32,6 +32,7 @@ docker network create "$NET"
 
 docker run -d \
     --net "$NET" \
+    -p 88:88 \
     --hostname $KRB5_SERER \
     --name $KRB5_SERER \
     -v $(pwd):/sasl_auth \
