@@ -21,3 +21,4 @@ priv/*.keytab
 *.orgcopy
 krb5.conf
 *.keytab
+rebar.lock
