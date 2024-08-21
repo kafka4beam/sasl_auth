@@ -155,7 +155,6 @@ init() ->
         false ->
             %% We will return ok but log a warning message with logger
             logger:warning(ErrorMsg),
-            RetVal,
             ok
     end.
 

@@ -343,9 +343,7 @@ parse_authzid(<<"a=", AuthzID0/binary>>, Attributes) when
 ->
     case replace_escape_sequence(AuthzID0) of
         {ok, AuthzID} ->
-            {ok, Attributes#{authzid => AuthzID}};
-        {error, Reason} ->
-            {error, Reason}
+            {ok, Attributes#{authzid => AuthzID}}
     end;
 parse_authzid(_, _) ->
     {error, 'other-error'}.
@@ -355,9 +353,7 @@ parse_username(<<"n=", Username0/binary>>, Attributes) when
 ->
     case replace_escape_sequence(Username0) of
         {ok, Username} ->
-            {ok, Attributes#{username => Username}};
-        {error, Reason} ->
-            {error, Reason}
+            {ok, Attributes#{username => Username}}
     end;
 parse_username(_, _) ->
     {error, 'other-error'}.
@@ -466,12 +462,8 @@ skip_extensions([Chunk | More], Parser) ->
 
 replace_escape_sequence(SaslName) ->
     Chunks = binary:split(SaslName, <<"=">>, [global]),
-    case replace_escape_sequence(Chunks, []) of
-        {error, Reason} ->
-            {error, Reason};
-        NChunks ->
-            {ok, iolist_to_binary(NChunks)}
-    end.
+    NChunks = replace_escape_sequence(Chunks, []),
+    {ok, iolist_to_binary(NChunks)}.
 
 replace_escape_sequence([], Acc) ->
     lists:reverse(Acc);
@@ -498,9 +490,7 @@ server_first_message(Nonce, Salt, IterationCount) ->
     ]).
 
 server_final_message(verifier, ServerSignature) ->
-    iolist_to_binary(["v=", base64:encode(ServerSignature)]);
-server_final_message(error, Error) ->
-    iolist_to_binary(["e=", Error]).
+    iolist_to_binary(["v=", base64:encode(ServerSignature)]).
 
 gen_salt() ->
     <<X:128/big-unsigned-integer>> = crypto:strong_rand_bytes(16),
@@ -529,6 +519,7 @@ gs2_header() ->
 %% n: client doesn't support channel binding
 %% y: client does support channel binding but thinks the server does not
 %% p: client requires channel binding
+-dialyzer({nowarn_function, gs2_cbind_flag/1}).
 gs2_cbind_flag({"p", ChannelBindingName}) ->
     lists:concat(["p=", ChannelBindingName]);
 gs2_cbind_flag("n") ->
