@@ -17,6 +17,7 @@ run_cli() ->
     Service = env("SERVICE"),
     maybe
         ok = sasl_auth:kinit("cli.keytab", env("CLI_PRINC")),
+        io:format("done kinit~n", []),
         {ok, C} ?= sasl_auth:client_new(Service, env("SRV"), env("CLI_PRINC"), env("CLI_NAME")),
         Pid = wait_for_server(),
         {ok, AvaialbeMecs} ?= sasl_auth:client_listmech(C),

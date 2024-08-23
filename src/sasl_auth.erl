@@ -8,6 +8,7 @@
 -export([
     init/0,
     kinit/2,
+    kinit/3,
     client_new/3,
     client_new/4,
     client_listmech/1,
@@ -161,7 +162,15 @@ init() ->
 -spec kinit(KeyTabPath :: keytab_path(), Principal :: principal()) ->
     ok | {error, {binary(), integer(), binary()}}.
 kinit(KeyTabPath, Principal) ->
-    sasl_kinit(null_terminate(KeyTabPath), null_terminate(Principal)).
+    Ccname = ccname(),
+    kinit(KeyTabPath, Principal, Ccname).
+
+kinit(KeyTabPath, Principal, Ccname) ->
+    sasl_kinit(
+        null_terminate(KeyTabPath),
+        null_terminate(Principal),
+        null_terminate(Ccname)
+    ).
 
 %% @doc Initialize a client context. User client's principal as client's username.
 %% This is the default behaviour before version 2.1.1, however may not work when
@@ -303,7 +312,7 @@ krb5_kt_default_name() -> sasl_krb5_kt_default_name().
 
 sasl_krb5_kt_default_name() -> not_loaded(?LINE).
 
-sasl_kinit(_, _) -> not_loaded(?LINE).
+sasl_kinit(_KeyTab, _Principal, _CacheName) -> not_loaded(?LINE).
 
 sasl_client_new(_Service, _Host, _Principal, _User) -> not_loaded(?LINE).
 
@@ -334,3 +343,6 @@ not_loaded(Line) ->
             )
         ]}
     ).
+
+ccname() ->
+    "MEMORY:krb5cc_" ++ atom_to_list(node()).
