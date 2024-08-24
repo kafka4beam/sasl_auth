@@ -65,6 +65,7 @@
 -type state() :: reference().
 -type keytab_path() :: file:filename_all().
 -type principal() :: string() | binary().
+-type ccname() :: string() | binary().
 -type service_name() :: string() | binary().
 -type host() :: string() | binary().
 -type user() :: string() | binary().
@@ -159,12 +160,24 @@ init() ->
             ok
     end.
 
--spec kinit(KeyTabPath :: keytab_path(), Principal :: principal()) ->
+%% @doc Initialize credentials from a keytab file and principal.
+%% It makes use of the per Erlang node static MEMORY type ccache.
+-spec kinit(keytab_path(), principal()) ->
     ok | {error, {binary(), integer(), binary()}}.
 kinit(KeyTabPath, Principal) ->
     Ccname = ccname(),
     kinit(KeyTabPath, Principal, Ccname).
 
+%% @doc Initialize credentials from a keytab file and principal.
+%% The CCname is provided for application's flexibility to decide
+%% which credentials cache type or name to use.
+%% e.g. `FILE:/tmp/krb5cc_mycache' or `MEMORY:krbcc5_mycache'
+%%
+%% CAUTION: Changing credentials cache name at runtime is not tested!
+%% CAUTION: There is currently a lack of call to krb5_cc_destroy, creating
+%%          many caches at runtime may lead to memory leak.
+-spec kinit(keytab_path(), principal(), ccname()) ->
+    ok | {error, {binary(), integer(), binary()}}.
 kinit(KeyTabPath, Principal, Ccname) ->
     sasl_kinit(
         null_terminate(KeyTabPath),
