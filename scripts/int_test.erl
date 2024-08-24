@@ -2,23 +2,26 @@
 
 -feature(maybe_expr, enable).
 
--export([start/0]).
+-export([start/1]).
 
+start(N) ->
+    L = lists:seq(1, N),
+    lists:foreach(fun(I) -> proc_lib:spawn(fun() -> do_start(I) end) end, L).
 
-start() ->
+do_start(I) ->
     case atom_to_list(node()) of
         "cli" ++ _ ->
-            run_cli();
+            run_cli(I);
         "srv" ++ _ ->
-            run_srv()
+            run_srv(I)
     end.
 
-run_cli() ->
+run_cli(I) ->
     Service = env("SERVICE"),
     maybe
         ok = sasl_auth:kinit("cli.keytab", env("CLI_PRINC")),
         {ok, C} ?= sasl_auth:client_new(Service, env("SRV"), env("CLI_PRINC"), env("CLI_NAME")),
-        Pid = wait_for_server(),
+        Pid = wait_for_server(I),
         {ok, AvaialbeMecs} ?= sasl_auth:client_listmech(C),
         true = lists:member(<<"GSSAPI">>, AvaialbeMecs),
         {ok, {sasl_continue, CT1}} ?= sasl_auth:client_start(C),
@@ -39,14 +42,14 @@ run_cli() ->
     end,
     ok.
 
-run_srv() ->
+run_srv(I) ->
     Service = env("SERVICE"),
     maybe
         %% server always init from default keytab anyway,
         %% so doing kinit here doesn't really do anything
         %ok ?= sasl_auth:kinit("srv.keytab", env("SRV_PRINC")),
         {ok, S} ?= sasl_auth:server_new(Service, env("SRV_PRINC")),
-        catch register(srv, self()),
+        catch register(srv_name(I), self()),
         {Pid, CT1} =
             receive
                 {P0, T0} ->
@@ -94,13 +97,16 @@ send_and_recv(Remote, Tag, Token) ->
             error(timeout)
     end.
 
-wait_for_server() ->
-    case rpc:call(srv@srv, erlang, whereis, [srv]) of
+wait_for_server(I) ->
+    case rpc:call(srv@srv, erlang, whereis, [srv_name(I)]) of
         Pid when is_pid(Pid) ->
             io:format("\n", []),
             Pid;
         _ ->
             timer:sleep(1000),
             io:format(".", []),
-            wait_for_server()
+            wait_for_server(I)
     end.
+
+srv_name(I) ->
+    list_to_atom("srv" ++ integer_to_list(I)).

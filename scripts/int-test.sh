@@ -85,5 +85,5 @@ sudo chmod 644 *.keytab
 #docker cp srv.keytab $SRV:/etc/krb5.keytab
 
 ## run client and server in two different shells:
-echo 'docker exec -it cli.example.com erl -sname cli -setcookie abcd -pa _build/default/lib/sasl_auth/ebin -eval "int_test:start()."'
-echo 'docker exec -it srv.example.com erl -sname srv -setcookie abcd -pa _build/default/lib/sasl_auth/ebin -eval "int_test:start()."'
+echo 'docker exec -it cli.example.com erl -sname cli -setcookie abcd -pa _build/default/lib/sasl_auth/ebin -eval "int_test:start(100)."'
+echo 'docker exec -it srv.example.com erl -sname srv -setcookie abcd -pa _build/default/lib/sasl_auth/ebin -eval "int_test:start(100)."'
