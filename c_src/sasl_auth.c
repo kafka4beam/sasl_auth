@@ -670,6 +670,12 @@ static ERL_NIF_TERM sasl_krb5_kt_default_name(ErlNifEnv* env, int UNUSED(argc), 
     }
 }
 
+static void enif_free_non_null(void* ptr) {
+    if (ptr != NULL) {
+        enif_free(ptr);
+    }
+}
+
 static ERL_NIF_TERM sasl_kinit(ErlNifEnv* env, int UNUSED(argc), const ERL_NIF_TERM argv[])
 {
 
@@ -710,17 +716,20 @@ static ERL_NIF_TERM sasl_kinit(ErlNifEnv* env, int UNUSED(argc), const ERL_NIF_T
 
     keytab_char = copy_bin(keytab_bin);
     if (keytab_char == NULL) {
-        return ERROR_TUPLE(env, ATOM_OOM);
+        ret = ERROR_TUPLE(env, ATOM_OOM);
+        goto kinit_free_chars;
     }
 
     principal_char = copy_bin(principal_bin);
     if (principal_char == NULL) {
-        return ERROR_TUPLE(env, ATOM_OOM);
+        ret = ERROR_TUPLE(env, ATOM_OOM);
+        goto kinit_free_chars;
     }
 
     ccname_char = copy_bin(ccname_bin);
     if (ccname_char == NULL) {
-        return ERROR_TUPLE(env, ATOM_OOM);
+        ret = ERROR_TUPLE(env, ATOM_OOM);
+        goto kinit_free_chars;
     }
 
     if ((error = krb5_init_context(&context)) != 0) {
@@ -801,9 +810,11 @@ kinit_finish:
     }
     krb5_free_context(context);
 
-    enif_free(principal_char);
-    enif_free(keytab_char);
-    enif_free(ccname_char);
+kinit_free_chars:
+
+    enif_free_non_null(principal_char);
+    enif_free_non_null(keytab_char);
+    enif_free_non_null(ccname_char);
     return ret;
 }
 
