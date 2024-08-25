@@ -165,12 +165,13 @@ init() ->
 -spec kinit(keytab_path(), principal()) ->
     ok | {error, {binary(), integer(), binary()}}.
 kinit(KeyTabPath, Principal) ->
-    Ccname = ccname(),
-    kinit(KeyTabPath, Principal, Ccname).
+    kinit(KeyTabPath, Principal, <<>>).
 
-%% @doc Initialize credentials from a keytab file and principal.
-%% The CCname is provided for application's flexibility to decide
+%% @hidden Initialize credentials from a keytab file and principal.
+%% The argument CCname is provided for application's flexibility to decide
 %% which credentials cache type or name to use.
+%% When set to empty string, the default cache name `MEMORY:krb5cc_sasl_auth'
+%% is used.
 %% e.g. `FILE:/tmp/krb5cc_mycache' or `MEMORY:krbcc5_mycache'
 %%
 %% CAUTION: Changing credentials cache name at runtime is not tested!
@@ -356,6 +357,3 @@ not_loaded(Line) ->
             )
         ]}
     ).
-
-ccname() ->
-    "MEMORY:krb5cc_" ++ atom_to_list(node()).
