@@ -32,6 +32,8 @@ static ERL_NIF_TERM ATOM_NOT_CONTROLLING_PROCESS;
     ERROR_TUPLE(env, enif_make_tuple2(env, enif_make_int(env, code), sasl_error(env, state)));
 
 #define KT_NAME_LEN 1024
+#define DEFAULT_CCNAME "MEMORY:krb5cc_sasl_auth"
+
 
 typedef struct {
     sasl_conn_t* conn;
@@ -143,6 +145,7 @@ static int load(ErlNifEnv* env, void** UNUSED(priv), ERL_NIF_TERM UNUSED(info))
     int cli_result = sasl_client_init(NULL);
     sasl_server_connection_nif_resource_type = init_resource_type(env, "sasl_auth_srv_state");
     int srv_result = sasl_server_init(NULL, "sasl_auth");
+    setenv("KRB5CCNAME", DEFAULT_CCNAME, 1);
     return !sasl_client_connection_nif_resource_type && !(cli_result == SASL_OK)
         && !sasl_server_connection_nif_resource_type && !(srv_result == SASL_OK);
 }
@@ -753,7 +756,9 @@ static ERL_NIF_TERM sasl_kinit(ErlNifEnv* env, int UNUSED(argc), const ERL_NIF_T
      *
      * krb5 doc says krb5_cc_default is essentially krb5_cc_resolve with default ccname, but it does not work.
      * So we set environment variable KRB5CCNAME and call krb5_cc_default instead */
-    setenv("KRB5CCNAME", (const char*)ccname_char, 1);
+    if (ccname_char[0] != 0) {
+        setenv("KRB5CCNAME", (const char*)ccname_char, 1);
+    }
     if ((error = krb5_cc_default(context, &ccache)) != 0) {
         tag = "krb5_cc_default";
         goto kinit_finish;
