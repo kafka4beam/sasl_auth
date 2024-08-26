@@ -9,6 +9,7 @@ all() ->
         default_keytab_test,
         kinit_test,
         simple_test,
+        custom_ccname,
         kinit_keytab_fail_test,
         kinit_invalid_principal_test,
         concurrency_test,
@@ -28,10 +29,6 @@ init_per_suite(Config) ->
     ServiceKeyTab = get_env(service_keytab, "SASL_AUTH_KAFKA_KEY_TAB"),
     ServiceName = get_env(service_principal, "SASL_AUTH_KAFKA_PRINCIPAL"),
     Service = {service, <<"kafka">>},
-
-    ok = sasl_auth:kinit(element(2, UserKeyTab), element(2, UserPrincipal)),
-    %% Unable to kinit with service keytab here, only one keytab can be kinit at a time.
-
     [
         UserKeyTab,
         UserPrincipal,
@@ -46,6 +43,17 @@ init_per_suite(Config) ->
 end_per_suite(_Config) ->
     ok.
 
+init_per_testcase(Case, Config) ->
+    ClientKeyTab = ?config(user_keytab, Config),
+    ClientPrincipal = ?config(user_principal, Config),
+    case Case of
+        custom_ccname ->
+            ok = sasl_auth:kinit(ClientKeyTab, ClientPrincipal, "MEMORY:custom_ccname");
+        _ ->
+            ok = sasl_auth:kinit(ClientKeyTab, ClientPrincipal)
+    end,
+    Config.
+
 default_keytab_test(_Config) ->
     ?assertMatch(<<"FILE:", _/binary>>, sasl_auth:krb5_kt_default_name()).
 
@@ -55,6 +63,12 @@ kinit_test(Config) ->
     ok = sasl_auth:kinit(KeyTab, Principal).
 
 simple_test(Config) ->
+    client_server_interaction(Config).
+
+custom_ccname(Config) ->
+    client_server_interaction(Config).
+
+client_server_interaction(Config) ->
     {ok, CliConn} = setup_default_client(Config),
     {ok, [_ | _]} = sasl_auth:client_listmech(CliConn),
     {ok, {sasl_continue, ClientToken}} = sasl_auth:client_start(CliConn),
