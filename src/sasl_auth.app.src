@@ -1,6 +1,6 @@
 {application, sasl_auth, [
-    {description, "Simple helper for SASL GSSAPI auth mechanism support in erlang applications"},
-    {vsn, "2.3.0"},
+    {description, "SASL GSSAPI and SCRAM auth mechanism support for Erlang/Elixir applications"},
+    {vsn, "2.3.1"},
     {registered, []},
     {applications, [kernel, stdlib]},
     {env, []},
