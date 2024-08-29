@@ -8,6 +8,7 @@
 -export([
     init/0,
     kinit/2,
+    kinit/3,
     client_new/3,
     client_new/4,
     client_listmech/1,
@@ -64,6 +65,7 @@
 -type state() :: reference().
 -type keytab_path() :: file:filename_all().
 -type principal() :: string() | binary().
+-type ccname() :: string() | binary().
 -type service_name() :: string() | binary().
 -type host() :: string() | binary().
 -type user() :: string() | binary().
@@ -158,10 +160,31 @@ init() ->
             ok
     end.
 
--spec kinit(KeyTabPath :: keytab_path(), Principal :: principal()) ->
+%% @doc Initialize credentials from a keytab file and principal.
+%% It makes use of the per Erlang node static MEMORY type ccache.
+-spec kinit(keytab_path(), principal()) ->
     ok | {error, {binary(), integer(), binary()}}.
 kinit(KeyTabPath, Principal) ->
-    sasl_kinit(null_terminate(KeyTabPath), null_terminate(Principal)).
+    kinit(KeyTabPath, Principal, <<>>).
+
+%% @hidden Initialize credentials from a keytab file and principal.
+%% The argument CCname is provided for application's flexibility to decide
+%% which credentials cache type or name to use.
+%% When set to empty string, the default cache name `MEMORY:krb5cc_sasl_auth'
+%% is used.
+%% e.g. `FILE:/tmp/krb5cc_mycache' or `MEMORY:krbcc5_mycache'
+%%
+%% CAUTION: Changing credentials cache name at runtime is not tested!
+%% CAUTION: There is currently a lack of call to krb5_cc_destroy, creating
+%%          many caches at runtime may lead to memory leak.
+-spec kinit(keytab_path(), principal(), ccname()) ->
+    ok | {error, {binary(), integer(), binary()}}.
+kinit(KeyTabPath, Principal, Ccname) ->
+    sasl_kinit(
+        null_terminate(KeyTabPath),
+        null_terminate(Principal),
+        null_terminate(Ccname)
+    ).
 
 %% @doc Initialize a client context. User client's principal as client's username.
 %% This is the default behaviour before version 2.1.1, however may not work when
@@ -303,7 +326,7 @@ krb5_kt_default_name() -> sasl_krb5_kt_default_name().
 
 sasl_krb5_kt_default_name() -> not_loaded(?LINE).
 
-sasl_kinit(_, _) -> not_loaded(?LINE).
+sasl_kinit(_KeyTab, _Principal, _CacheName) -> not_loaded(?LINE).
 
 sasl_client_new(_Service, _Host, _Principal, _User) -> not_loaded(?LINE).
 

@@ -1,3 +1,4 @@
+#define _DEFAULT_SOURCE 200112L
 #include <erl_nif.h>
 #include <krb5.h>
 #include <sasl/sasl.h>
@@ -31,6 +32,8 @@ static ERL_NIF_TERM ATOM_NOT_CONTROLLING_PROCESS;
     ERROR_TUPLE(env, enif_make_tuple2(env, enif_make_int(env, code), sasl_error(env, state)));
 
 #define KT_NAME_LEN 1024
+#define DEFAULT_CCNAME "MEMORY:krb5cc_sasl_auth"
+
 
 typedef struct {
     sasl_conn_t* conn;
@@ -142,6 +145,7 @@ static int load(ErlNifEnv* env, void** UNUSED(priv), ERL_NIF_TERM UNUSED(info))
     int cli_result = sasl_client_init(NULL);
     sasl_server_connection_nif_resource_type = init_resource_type(env, "sasl_auth_srv_state");
     int srv_result = sasl_server_init(NULL, "sasl_auth");
+    setenv("KRB5CCNAME", DEFAULT_CCNAME, 1);
     return !sasl_client_connection_nif_resource_type && !(cli_result == SASL_OK)
         && !sasl_server_connection_nif_resource_type && !(srv_result == SASL_OK);
 }
@@ -669,13 +673,21 @@ static ERL_NIF_TERM sasl_krb5_kt_default_name(ErlNifEnv* env, int UNUSED(argc), 
     }
 }
 
+static void enif_free_non_null(void* ptr) {
+    if (ptr != NULL) {
+        enif_free(ptr);
+    }
+}
+
 static ERL_NIF_TERM sasl_kinit(ErlNifEnv* env, int UNUSED(argc), const ERL_NIF_TERM argv[])
 {
 
-    ErlNifBinary keytab;
-    ErlNifBinary principal_in;
-    unsigned char* principal_mut = NULL;
-    unsigned char* keytab_in = NULL;
+    ErlNifBinary keytab_bin;
+    ErlNifBinary principal_bin;
+    ErlNifBinary ccname_bin;
+    unsigned char* principal_char = NULL;
+    unsigned char* keytab_char = NULL;
+    unsigned char* ccname_char = NULL;
     ERL_NIF_TERM ret;
     ERL_NIF_TERM error_tag;
     ERL_NIF_TERM error_code;
@@ -687,7 +699,7 @@ static ERL_NIF_TERM sasl_kinit(ErlNifEnv* env, int UNUSED(argc), const ERL_NIF_T
     krb5_context context = NULL;
     krb5_creds creds = { .magic = 0 };
     krb5_keytab kt_handle = NULL;
-    krb5_ccache defcache = NULL;
+    krb5_ccache ccache = NULL;
     krb5_get_init_creds_opt* options = NULL;
 
     const char* krb_error_msg;
@@ -695,17 +707,32 @@ static ERL_NIF_TERM sasl_kinit(ErlNifEnv* env, int UNUSED(argc), const ERL_NIF_T
     int handle_alive = 0;
     int cache_alive = 0;
 
-    if ((!enif_inspect_binary(env, argv[0], &keytab)
-            || !enif_inspect_binary(env, argv[1], &principal_in)))
+    if ( !enif_inspect_binary(env, argv[0], &keytab_bin) ) {
         return enif_make_badarg(env);
-
-    principal_mut = copy_bin(principal_in);
-    if (principal_mut == NULL) {
-        return ERROR_TUPLE(env, ATOM_OOM);
     }
-    keytab_in = copy_bin(keytab);
-    if (keytab_in == NULL) {
-        return ERROR_TUPLE(env, ATOM_OOM);
+    if ( !enif_inspect_binary(env, argv[1], &principal_bin) ) {
+        return enif_make_badarg(env);
+    }
+    if ( !enif_inspect_binary(env, argv[2], &ccname_bin) ) {
+        return enif_make_badarg(env);
+    }
+
+    keytab_char = copy_bin(keytab_bin);
+    if (keytab_char == NULL) {
+        ret = ERROR_TUPLE(env, ATOM_OOM);
+        goto kinit_free_chars;
+    }
+
+    principal_char = copy_bin(principal_bin);
+    if (principal_char == NULL) {
+        ret = ERROR_TUPLE(env, ATOM_OOM);
+        goto kinit_free_chars;
+    }
+
+    ccname_char = copy_bin(ccname_bin);
+    if (ccname_char == NULL) {
+        ret = ERROR_TUPLE(env, ATOM_OOM);
+        goto kinit_free_chars;
     }
 
     if ((error = krb5_init_context(&context)) != 0) {
@@ -713,19 +740,26 @@ static ERL_NIF_TERM sasl_kinit(ErlNifEnv* env, int UNUSED(argc), const ERL_NIF_T
         goto kinit_finish;
     }
 
-    if ((error = krb5_parse_name(context, (const char*)principal_mut, &principal)) != 0) {
+    if ((error = krb5_parse_name(context, (const char*)principal_char, &principal)) != 0) {
         tag = "krb5_parse_name";
         goto kinit_finish;
     }
 
-    if ((error = krb5_kt_resolve(context, (const char*)keytab_in, &kt_handle)) != 0) {
+    if ((error = krb5_kt_resolve(context, (const char*)keytab_char, &kt_handle)) != 0) {
         tag = "krb5_kt_resolve";
         goto kinit_finish;
     }
 
     handle_alive = 1;
 
-    if ((error = krb5_cc_default(context, &defcache)) != 0) {
+    /* NOTWORKING: (error = krb5_cc_resolve(context, (const char*)ccname_char, &ccache))
+     *
+     * krb5 doc says krb5_cc_default is essentially krb5_cc_resolve with default ccname, but it does not work.
+     * So we set environment variable KRB5CCNAME and call krb5_cc_default instead */
+    if (ccname_char[0] != 0) {
+        setenv("KRB5CCNAME", (const char*)ccname_char, 1);
+    }
+    if ((error = krb5_cc_default(context, &ccache)) != 0) {
         tag = "krb5_cc_default";
         goto kinit_finish;
     }
@@ -740,15 +774,14 @@ static ERL_NIF_TERM sasl_kinit(ErlNifEnv* env, int UNUSED(argc), const ERL_NIF_T
 /* It's not clear why this call fails on mac. For the time being initially keytab init must
  * be done on the command line */
 #if (!defined __APPLE__ || !defined __MACH__)
-    if ((error = krb5_get_init_creds_opt_set_out_ccache(context, options, defcache)) != 0) {
+    if ((error = krb5_get_init_creds_opt_set_out_ccache(context, options, ccache)) != 0) {
         tag = "krb5_get_init_creds_opt_set_out_ccache";
         goto kinit_finish;
     }
 #endif
 
-    if ((error
-            = krb5_get_init_creds_keytab(context, &creds, principal, kt_handle, 0, NULL, options))
-        != 0) {
+
+    if ((error = krb5_get_init_creds_keytab(context, &creds, principal, kt_handle, 0, NULL, options)) != 0) {
         tag = "krb5_get_init_creds_keytab";
         goto kinit_finish;
     }
@@ -768,7 +801,7 @@ kinit_finish:
     }
 
     if (1 == cache_alive) {
-        krb5_cc_close(context, defcache);
+        krb5_cc_close(context, ccache);
     }
 
     if (1 == handle_alive) {
@@ -782,8 +815,11 @@ kinit_finish:
     }
     krb5_free_context(context);
 
-    enif_free(principal_mut);
-    enif_free(keytab_in);
+kinit_free_chars:
+
+    enif_free_non_null(principal_char);
+    enif_free_non_null(keytab_char);
+    enif_free_non_null(ccname_char);
     return ret;
 }
 
@@ -793,7 +829,7 @@ static ErlNifFunc nif_funcs[]
           { "sasl_client_start", 1, sasl_cli_start, ERL_NIF_DIRTY_JOB_CPU_BOUND },
           { "sasl_client_step", 2, sasl_cli_step, ERL_NIF_DIRTY_JOB_CPU_BOUND },
           { "sasl_client_done", 1, sasl_cli_done, ERL_NIF_DIRTY_JOB_CPU_BOUND },
-          { "sasl_kinit", 2, sasl_kinit, ERL_NIF_DIRTY_JOB_CPU_BOUND },
+          { "sasl_kinit", 3, sasl_kinit, ERL_NIF_DIRTY_JOB_CPU_BOUND },
           { "sasl_server_new", 3, sasl_srv_new, ERL_NIF_DIRTY_JOB_CPU_BOUND },
           { "sasl_server_start", 2, sasl_srv_start, ERL_NIF_DIRTY_JOB_CPU_BOUND },
           { "sasl_server_step", 2, sasl_srv_step, ERL_NIF_DIRTY_JOB_CPU_BOUND },

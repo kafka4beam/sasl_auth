@@ -6,7 +6,7 @@
 set -euo pipefail
 
 KRB5_IMAGE='sasl_auth_dockerfile.ubuntu22.04'
-ERLANGE_IMAGE='ghcr.io/emqx/emqx-builder/5.3-9:1.15.7-26.2.5-3-ubuntu20.04'
+ERLANGE_IMAGE='ghcr.io/emqx/emqx-builder/5.3-9:1.15.7-26.2.5-3-ubuntu22.04'
 #ERLANGE_IMAGE="$KRB5_IMAGE"
 NET='example.com'
 REALM='EXAMPLE.COM'
