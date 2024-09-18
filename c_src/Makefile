@@ -43,7 +43,7 @@ ifeq ($(UNAME_SYS), Darwin)
 	CXXFLAGS ?= -O3 -finline-functions -Wall -Wextra -Wconversion -Wcast-align -Wformat=2 -Wformat-security \
 				-Wmissing-prototypes -Wmissing-declarations -Wstrict-prototypes -Wstrict-overflow \
 				-I$(CYRUS_INCLUDE) -I$(KRB5_INCLUDE)
-	LDFLAGS ?= -undefined dynamic_lookup
+	LDFLAGS += -undefined dynamic_lookup
 
 	LDLIBS += -L$(CYRUS_LIB) -L$(KRB5_LIB)
 else ifeq ($(UNAME_SYS), FreeBSD)
