@@ -496,9 +496,7 @@ gen_salt() ->
     <<X:128/big-unsigned-integer>> = crypto:strong_rand_bytes(16),
     iolist_to_binary(io_lib:format("~32.16.0b", [X])).
 
-%% 0x21-2B, 0x2D-7E
-nonce() ->
-    list_to_binary([rand_uniform(33, 127) || _ <- lists:seq(1, 15)]).
+nonce() -> rand_chars(16).
 
 salted_password(Alg, Password, Salt, IterationCount) ->
     pbkdf2(Alg, Password, Salt, IterationCount).
@@ -530,12 +528,6 @@ gs2_cbind_flag("y") ->
 hmac(Algorithm, Key, Data) ->
     crypto:mac(hmac, Algorithm, Key, Data).
 
-rand_uniform(Lo, Hi) ->
-    case rand:uniform(Hi - Lo) + Lo of
-        44 -> 45;
-        N -> N
-    end.
-
 pbkdf2(Alg, Password, Salt, IterationCount) ->
     crypto:pbkdf2_hmac(Alg, Password, Salt, IterationCount, keylen(Alg)).
 
@@ -544,3 +536,12 @@ keylen(sha224) -> 28;
 keylen(sha256) -> 32;
 keylen(sha284) -> 48;
 keylen(sha512) -> 64.
+
+rand_chars(0) -> [];
+rand_chars(N) -> [rand_char() | rand_chars(N - 1)].
+
+rand_char() -> base62(rand:uniform(62) - 1).
+
+base62(I) when I < 26 -> $A + I;
+base62(I) when I < 52 -> $a + I - 26;
+base62(I) -> $0 + I - 52.
