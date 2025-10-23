@@ -4,7 +4,7 @@ on:
     branches:
       - master
 env:
-  OTP_VERSION: "26"
+  OTP_VERSION: "27.0"
   REBAR_VERSION: "3.23.0"
 
 jobs:
@@ -17,7 +17,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install libkrb5-dev libsasl2-dev libsasl2-modules-gssapi-mit
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: OTP
         uses: erlef/setup-beam@v1
         with:
