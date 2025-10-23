@@ -4,7 +4,7 @@ on:
     branches:
       - master
 env:
-  OTP_VERSION: "26"
+  OTP_VERSION: "27.0"
   REBAR_VERSION: "3.23.0"
 
 jobs:
