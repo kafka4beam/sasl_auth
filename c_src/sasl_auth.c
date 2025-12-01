@@ -32,7 +32,6 @@ static ERL_NIF_TERM ATOM_NOT_CONTROLLING_PROCESS;
     ERROR_TUPLE(env, enif_make_tuple2(env, enif_make_int(env, code), sasl_error(env, state)));
 
 #define KT_NAME_LEN 1024
-#define DEFAULT_CCNAME "MEMORY:krb5cc_sasl_auth"
 
 
 typedef struct {
@@ -145,7 +144,6 @@ static int load(ErlNifEnv* env, void** UNUSED(priv), ERL_NIF_TERM UNUSED(info))
     int cli_result = sasl_client_init(NULL);
     sasl_server_connection_nif_resource_type = init_resource_type(env, "sasl_auth_srv_state");
     int srv_result = sasl_server_init(NULL, "sasl_auth");
-    setenv("KRB5CCNAME", DEFAULT_CCNAME, 1);
     return !sasl_client_connection_nif_resource_type && !(cli_result == SASL_OK)
         && !sasl_server_connection_nif_resource_type && !(srv_result == SASL_OK);
 }
