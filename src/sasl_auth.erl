@@ -15,6 +15,8 @@
     client_start/1,
     client_step/2,
     client_done/1,
+    decode/2,
+    encode/2,
     server_new/2,
     server_new/3,
     server_start/2,
@@ -259,6 +261,14 @@ client_step(State, Token) ->
 client_done(State) ->
     sasl_client_done(State).
 
+-spec decode(state(), binary()) -> {ok, binary()}.
+decode(State, Data) ->
+    sasl_decode(State, Data).
+
+-spec encode(state(), binary()) -> {ok, binary()}.
+encode(State, Data) ->
+    sasl_encode(State, Data).
+
 %% @doc Initialize server side authentication context.
 %% NOTE: This depends on the server `gethostname()' to be resolved exactly the
 %% same as the FQDN the clients intend to connect.
@@ -337,6 +347,10 @@ sasl_client_start(_State) -> not_loaded(?LINE).
 sasl_client_step(_State, _Token) -> not_loaded(?LINE).
 
 sasl_client_done(_State) -> not_loaded(?LINE).
+
+sasl_decode(_State, _Data) -> not_loaded(?LINE).
+
+sasl_encode(_State, _Data) -> not_loaded(?LINE).
 
 sasl_server_new(_Service, _ServerFQDN, _Principal) -> not_loaded(?LINE).
 

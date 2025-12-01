@@ -77,8 +77,14 @@ client_server_interaction(Config) ->
     {ok, {sasl_continue, ClientToken1}} = sasl_auth:client_step(CliConn, ServerToken),
     {ok, {sasl_continue, ServerToken2}} = sasl_auth:server_step(SrvConn, ClientToken1),
     {ok, {sasl_ok, ClientToken2}} = sasl_auth:client_step(CliConn, ServerToken2),
-    {ok, {sasl_ok, ServerToken3}} = sasl_auth:server_step(SrvConn, ClientToken2),
-    ?assertEqual(<<"">>, ServerToken3),
+    {ok, {sasl_ok, <<"">>}} = sasl_auth:server_step(SrvConn, ClientToken2),
+
+    Plaintext = <<9:32, "plaintext">>,
+    {ok, ClientCipher} = sasl_auth:encode(CliConn, Plaintext),
+    {ok, Plaintext} = sasl_auth:decode(SrvConn, ClientCipher),
+    {ok, ServerCipher} = sasl_auth:encode(SrvConn, Plaintext),
+    {ok, Plaintext} = sasl_auth:decode(CliConn, ServerCipher),
+
     ok = sasl_auth:server_done(SrvConn),
     ok = sasl_auth:client_done(CliConn),
     ok.

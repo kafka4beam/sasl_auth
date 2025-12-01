@@ -33,6 +33,7 @@ static ERL_NIF_TERM ATOM_NOT_CONTROLLING_PROCESS;
 
 #define KT_NAME_LEN 1024
 #define DEFAULT_CCNAME "MEMORY:krb5cc_sasl_auth"
+#define DEFAULT_SASL_BUFSIZE 65535
 
 
 typedef struct {
@@ -293,6 +294,19 @@ static ERL_NIF_TERM sasl_cli_new(ErlNifEnv* env, int UNUSED(argc), const ERL_NIF
     enif_mutex_unlock(state->controller_lock);
     switch (result) {
     case SASL_OK:
+        sasl_security_properties_t secprops;
+        secprops.min_ssf = 0;
+        secprops.max_ssf = 256;
+        // FIXME: should be set by the application, or the protocol should split
+        // into shorter messages.
+        secprops.maxbufsize = DEFAULT_SASL_BUFSIZE;
+        
+        secprops.property_names = NULL;
+        secprops.property_values = NULL;
+        secprops.security_flags = 0;
+        
+        sasl_setprop(state->conn, SASL_SEC_PROPS, &secprops);
+
         return_state = enif_make_resource(env, state);
         enif_release_resource(state);
         return OK_TUPLE(env, return_state);
@@ -458,6 +472,76 @@ static ERL_NIF_TERM sasl_cli_done(ErlNifEnv* env, int UNUSED(argc), const ERL_NI
     return ret;
 }
 
+static ERL_NIF_TERM sasl_do_decode(ErlNifEnv* env, int UNUSED(argc), const ERL_NIF_TERM argv[])
+{
+    sasl_state_t* state;
+    ErlNifBinary in;
+    ERL_NIF_TERM ret;
+
+    if ((!enif_get_resource(
+            env, argv[0], sasl_client_connection_nif_resource_type, (void**)&state)
+        && !enif_get_resource(
+            env, argv[0], sasl_server_connection_nif_resource_type, (void**)&state))
+        || !enif_inspect_binary(env, argv[1], &in)) {
+        return enif_make_badarg(env);
+    } else if (!sasl_auth_process_check(env, state)) {
+        return enif_raise_exception(env, ATOM_NOT_CONTROLLING_PROCESS);
+    }
+
+    unsigned char* c_in = copy_bin(in);
+    const char* c_out;
+    unsigned int outlen;
+
+    enif_mutex_lock(state->controller_lock);
+    int result = sasl_decode(state->conn, (char *)c_in, (unsigned int)in.size, &c_out, &outlen);
+    enif_mutex_unlock(state->controller_lock);
+
+    if (result == SASL_OK) {
+        ret = enif_make_tuple2(env, ATOM_OK, str_to_bin(env, c_out, outlen));
+    } else {
+        ret = SASL_ERROR_TUPLE(env, state, result);
+    }
+
+    enif_free(c_in);
+
+    return ret;
+}
+
+static ERL_NIF_TERM sasl_do_encode(ErlNifEnv* env, int UNUSED(argc), const ERL_NIF_TERM argv[])
+{
+    sasl_state_t* state;
+    ErlNifBinary in;
+    ERL_NIF_TERM ret;
+
+    if ((!enif_get_resource(
+            env, argv[0], sasl_client_connection_nif_resource_type, (void**)&state)
+        && !enif_get_resource(
+            env, argv[0], sasl_server_connection_nif_resource_type, (void**)&state))
+        || !enif_inspect_binary(env, argv[1], &in)) {
+        return enif_make_badarg(env);
+    } else if (!sasl_auth_process_check(env, state)) {
+        return enif_raise_exception(env, ATOM_NOT_CONTROLLING_PROCESS);
+    }
+
+    unsigned char* c_in = copy_bin(in);
+    const char* c_out;
+    unsigned int outlen;
+
+    enif_mutex_lock(state->controller_lock);
+    int result = sasl_encode(state->conn, (char *)c_in, (unsigned int)in.size, &c_out, &outlen);
+    enif_mutex_unlock(state->controller_lock);
+    if (result == SASL_OK) {
+        ret = enif_make_tuple2(env, ATOM_OK, str_to_bin(env, c_out, outlen));
+    } else {
+        ret = SASL_ERROR_TUPLE(env, state, result);
+    }
+
+    enif_free(c_in);
+
+    return ret;
+}
+
+
 // server begin
 static ERL_NIF_TERM sasl_srv_new(ErlNifEnv* env, int UNUSED(argc), const ERL_NIF_TERM argv[])
 {
@@ -518,6 +602,17 @@ static ERL_NIF_TERM sasl_srv_new(ErlNifEnv* env, int UNUSED(argc), const ERL_NIF
 
     switch (result) {
     case SASL_OK:
+        sasl_security_properties_t secprops;
+        secprops.min_ssf = 0;
+        secprops.max_ssf = 256;
+        // FIXME: should be set by the application, or the protocol should split
+        // into shorter messages.
+        secprops.maxbufsize = DEFAULT_SASL_BUFSIZE;
+        secprops.property_names = NULL;
+        secprops.property_values = NULL;
+        secprops.security_flags = 0;
+        sasl_setprop(state->conn, SASL_SEC_PROPS, &secprops);
+
         return_state = enif_make_resource(env, state);
         enif_release_resource(state);
         return OK_TUPLE(env, return_state);
@@ -829,6 +924,8 @@ static ErlNifFunc nif_funcs[]
           { "sasl_client_start", 1, sasl_cli_start, ERL_NIF_DIRTY_JOB_CPU_BOUND },
           { "sasl_client_step", 2, sasl_cli_step, ERL_NIF_DIRTY_JOB_CPU_BOUND },
           { "sasl_client_done", 1, sasl_cli_done, ERL_NIF_DIRTY_JOB_CPU_BOUND },
+          { "sasl_decode", 2, sasl_do_decode, ERL_NIF_DIRTY_JOB_CPU_BOUND },
+          { "sasl_encode", 2, sasl_do_encode, ERL_NIF_DIRTY_JOB_CPU_BOUND },
           { "sasl_kinit", 3, sasl_kinit, ERL_NIF_DIRTY_JOB_CPU_BOUND },
           { "sasl_server_new", 3, sasl_srv_new, ERL_NIF_DIRTY_JOB_CPU_BOUND },
           { "sasl_server_start", 2, sasl_srv_start, ERL_NIF_DIRTY_JOB_CPU_BOUND },
